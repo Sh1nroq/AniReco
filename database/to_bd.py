@@ -20,7 +20,6 @@ engine = create_engine(
 
 metadata = MetaData()
 
-
 anime_table = Table(
     "anime",
     metadata,
