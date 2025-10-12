@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Table, MetaData, Column, Integer, String, TIMESTAMP
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
-from parser.json_parser import json_parser
+from scripts.json_parser import json_parser
 from urllib.parse import quote_plus
 from sqlalchemy import Text
 
