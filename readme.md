@@ -44,14 +44,27 @@
 1. Клонируйте репозиторий:
 
 ```bash
-git clone https://github.com/yourusername/anime-recommender.git
-cd anime-recommender
+git clone https://github.com/Sh1nroq/AnimeRecomendationNeuronNetwork.git
+cd nimeRecomendationNeuronNetwork
+```
 
-⚡ Использование
+2. Настройте окружение
+```
+conda create -n AnimeRecomendation
+conda activate AnimeRecomendation
+```
+
+3. Установите зависимости:
+```
+pip install -r requirements.txt
+```
+
+## ⚡ Использование
 Получение рекомендаций
-python main.py --user_id 123
+```python main.py --user_id 123```
 
-📂 Структура проекта
+## 📂 Структура проекта
+```
 anime-recommender/
 ├─ data/                 # Данные и кеш API
 ├─ models/               # PyTorch модели
@@ -59,7 +72,7 @@ anime-recommender/
 ├─ requirements.txt
 ├─ Dockerfile
 ├─ README.md
-
-📜 Лицензия
+```
+## 📜 Лицензия
 
 MIT License © 2025
