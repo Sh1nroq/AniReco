@@ -3,7 +3,7 @@ from time import sleep
 import json
 import os
 
-os.makedirs('../data', exist_ok=True)
+os.makedirs("../data", exist_ok=True)
 
 page = 1
 results = []
@@ -20,7 +20,7 @@ while True:
     anime_list = info.get("data", [])
 
     if not anime_list:
-        print('Аниме успешно получены!')
+        print("Аниме успешно получены!")
         break
 
     results.extend(anime_list)
@@ -29,5 +29,5 @@ while True:
     page += 1
     sleep(1)
 
-with open('../data/anime.json', 'w', encoding='utf-8') as f:
+with open("../data/anime.json", "w", encoding="utf-8") as f:
     json.dump(results, f, ensure_ascii=False, indent=4)
