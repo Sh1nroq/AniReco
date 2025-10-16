@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from scripts.json_parser import json_parser
 from urllib.parse import quote_plus
 from sqlalchemy import Text
+from sqlalchemy.dialects.postgresql import JSONB
 
 user = quote_plus('postgres')
 password = quote_plus('123321')  # если есть спецсимволы, они будут закодированы
@@ -24,15 +25,10 @@ anime_table = Table(
     "anime",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("data", Text),
-    Column(
-        "last_updated",
-        TIMESTAMP,
-        server_default=text(
-            "CURRENT_TIMESTAMP"
-        ),
-    ),
+    Column("data", JSONB),
+    Column("last_updated", TIMESTAMP, server_default=text("CURRENT_TIMESTAMP")),
 )
+
 metadata.create_all(engine)
 
 anime_info = json_parser("../data/anime.json")
@@ -40,6 +36,6 @@ anime_info = json_parser("../data/anime.json")
 with Session(engine) as session:
     for mal_id, info in anime_info.items():
         insert_anime_to_bd = insert(anime_table).values(
-            id=mal_id, data=str(info)).on_conflict_do_nothing()
+            id=mal_id, data=info).on_conflict_do_nothing()
         session.execute(insert_anime_to_bd)
     session.commit()
