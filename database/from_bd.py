@@ -1,9 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-from sqlalchemy import Table, MetaData, Column, Integer, String, TIMESTAMP
-from sqlalchemy import text
-from sqlalchemy.dialects.postgresql import insert
-from torch.utils.hipify.hipify_python import meta_data
+from sqlalchemy import Table, MetaData
 
 from scripts.json_parser import json_parser
 from urllib.parse import quote_plus
@@ -26,17 +22,21 @@ def get_info_from_bd():
     table = Table('anime', metadata, autoload_with=engine)
 
     stmt = select(
+        # table.c.id.label("id"),
         table.c.data["title"].astext.label("title"),
+        table.c.data["genres"].astext.label("genres"),
         table.c.data["synopsis"].astext.label("synopsis")
     )
 
-    X,y = [], []
+    titles,genres, synopsis, id = [], [], [], []
 
     with engine.connect() as conn:
         result = conn.execute(stmt)
         for row in result:
             if row.synopsis and row.title:
-                X.append(row.synopsis.strip())
-                y.append(row.title.strip())
+                titles.append(row.title.strip())
+                genres.append(row.genres.strip())
+                synopsis.append(row.synopsis.strip())
+                # id.append(id)
 
-    return X,y
+    return titles,genres, synopsis
