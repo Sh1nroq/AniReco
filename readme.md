@@ -1,4 +1,4 @@
-# Anime Recommender
+# Anime Recommender (AniReco)
 
 ![Python](https://img.shields.io/badge/python-3.11-blue) ![PyTorch](https://img.shields.io/badge/pytorch-2.1-orange) ![PostgreSQL](https://img.shields.io/badge/postgresql-15-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green)
 
