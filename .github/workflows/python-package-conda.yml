@@ -24,7 +24,7 @@ jobs:
 
     - name: Update dependencies from environment.yml
       run: |
-        conda env update --file environment.yml --name myenv
+        conda env update --file environment.yml --name AnimeRecomendation
 
     - name: Lint with flake8
       run: |
