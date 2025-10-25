@@ -6,8 +6,9 @@ import pandas as pd
 
 
 class MyAnimeDataset(torch.utils.data.Dataset):
-    def __init__(self, filepath_parquet, tokenizer):
-        self.full_text = pd.read_parquet(filepath_parquet)
+    def __init__(self, data, tokenizer):
+        # self.full_text = pd.read_parquet(filepath_parquet)
+        self.full_text = data
         self.label = self.full_text["label"].tolist()
         synopsis_text_1 = self.full_text["text1"].tolist()
         synopsis_text_2 = self.full_text["text2"].tolist()
