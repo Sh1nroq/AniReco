@@ -53,4 +53,10 @@ def move_to_device(item_1, item_2, y, device):
     y = y.to(device)
     return item_1, item_2, y
 
+def get_anime_search_table(titles, synopsis):
+    anime = []
+    for idx in range(len(titles)):
+        anime.append((titles[idx], synopsis[idx]))
+    anime_table = pd.DataFrame(anime, columns=['title', 'synopsis'])
+    anime_table.to_parquet("data/faiss_anime_search.parquet", index=False, compression="gzip")
 

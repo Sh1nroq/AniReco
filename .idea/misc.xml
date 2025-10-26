@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Pytorchenc" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="AnimeRecomendation" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="anime_env" project-jdk-type="Python SDK" />
 </project>
