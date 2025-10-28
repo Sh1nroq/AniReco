@@ -5,7 +5,7 @@ import os
 
 os.makedirs("../data", exist_ok=True)
 
-#pages 1165 by date 10.10.2025
+# pages 1165 by date 10.10.2025
 page = 1
 results = []
 while True:

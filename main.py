@@ -1,8 +1,6 @@
 import pandas as pd
 
-from database.from_bd import get_info_from_bd
-from model.utils import preprocessing_data
-from model.utils import get_anime_search_table
+from src.db.db_utils import get_info_from_bd
 
 titles, genres, synopsis = get_info_from_bd()
 # preprocessing_data(titles, genres, synopsis)
