@@ -1,1 +1,3 @@
 toDo.md
+data/embeddings/anime_recommender.pt
+data/embeddings/embedding_of_all_anime.npy
