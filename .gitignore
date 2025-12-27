@@ -1,4 +1,5 @@
-toDo.md
 data/embeddings/anime_recommender.pt
 data/embedding_of_all_anime.npy
 data/raw/anime.json
+data/processed
+data/raw

@@ -7,7 +7,7 @@ from torch import nn
 from transformers import AutoTokenizer, BertModel
 import torch.nn.functional as F
 import numpy as np
-
+from pathlib import Path
 
 class PredictionBert(torch.nn.Module):
     def __init__(self):
@@ -28,11 +28,11 @@ class PredictionBert(torch.nn.Module):
         x = F.normalize(x, p=2, dim=1)
         return x
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-filepath = os.path.join(BASE_DIR, "../../data/embeddings/anime_recommender_alpha.pt")
-filepath_anime = os.path.join(
-    BASE_DIR, "../../data/processed/parsed_anime_data.parquet"
-)
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+filepath = ROOT_DIR / "data" / "embeddings" / "anime_recommender_alpha.pt"
+filepath_anime = ROOT_DIR / "data" / "processed" / "parsed_anime_data.parquet"
+embeddings_path = ROOT_DIR / "data" / "embeddings" / "embedding_of_all_anime.npy"
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 model = PredictionBert().to(device)
@@ -41,9 +41,7 @@ model.eval()
 
 tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 
-embeddings_matrix = np.load(
-    os.path.join(BASE_DIR, "../../data/embeddings/embedding_of_all_anime.npy")
-)
+embeddings_matrix = np.load(embeddings_path)
 
 anime = pd.read_parquet(filepath_anime)
 anime_titles = anime["title"]
@@ -53,7 +51,7 @@ index = faiss.IndexFlatIP(dim)
 index.add(embeddings_matrix)
 print(f"Добавлено {index.ntotal} аниме в FAISS индекс")
 
-name = 'Gachiakuta'
+name = input()
 query = get_synopsis(name, filepath_anime)
 
 tokens = tokenizer(

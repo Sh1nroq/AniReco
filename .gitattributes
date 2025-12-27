@@ -1,1 +1,2 @@
-data/anime.json filter=lfs diff=lfs merge=lfs -text
+data/embeddings/embedding_of_all_anime.npy filter=lfs diff=lfs merge=lfs -text
+data/embeddings/anime_recommender_alpha.pt filter=lfs diff=lfs merge=lfs -text
