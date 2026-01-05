@@ -185,6 +185,10 @@ def get_synopsis(name: str, filepath: str):
 
     return anime.iloc[0]['synopsis']
 
-
-# def filter(anime_idx:str, title_query):
-#
+def filter_by_genres(query_genres, candidate_anime_list):
+    recommended = []
+    for anime in candidate_anime_list:
+        anime_genres = anime.genres
+        if any(g in query_genres for g in anime_genres):
+            recommended.append(anime)
+    return recommended

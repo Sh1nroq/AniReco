@@ -1,0 +1,19 @@
+  services:
+    backend:
+      image: Anireco-backend
+      build: ./backend
+    bd:
+      image: postgres:18.0
+      environment:
+        POSTGRES_PASSWORD: ${DB_password}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_DB: ${DB_NAME}
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      volumes:
+        - db-data:/var/lib/postgresql/data
+    nn:
+      #todo
