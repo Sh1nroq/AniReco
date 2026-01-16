@@ -8,3 +8,8 @@ data/embeddings/anime_recommender_v1.pt
 .idea/
 src/model/__pycache__/
 .venv
+backend/app/__pycache__/
+src/utils/__pycache__
+qdrant_storage
+backend/app/db/__pycache__/
+backend/app/api/__pycache__/
