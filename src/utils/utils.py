@@ -1,7 +1,10 @@
 import random
 import os
+import re
+
 from pandas.core.interchange.dataframe_protocol import DataFrame
-from transformers import AutoTokenizer, BertModel
+from torch.utils.data import DataLoader, Dataset
+from transformers import AutoTokenizer, BertModel, AutoModel
 import pandas as pd
 import numpy as np
 import torch.nn.functional as F
@@ -9,186 +12,148 @@ import torch
 import tqdm
 from torch import nn
 
-def random_deletion(text, p=0.1):
-    words = text.split()
-    if len(words) == 1:
-        return text
-    new_words = [w for w in words if random.random() > p]
-    return " ".join(new_words) if new_words else text
+from src.model.architecture import AnimeRecommender
 
-def random_swap(text, n=1):
-    words = text.split()
-    if len(words) < 2:
-        return text
-    for _ in range(n):
-        i, j = random.sample(range(len(words)), 2)
-        words[i], words[j] = words[j], words[i]
-    return " ".join(words)
 
-def text_augment(text):
-    r = random.random()
-    if r < 0.3:
-        return random_deletion(text, p=0.1)
-    elif r < 0.5:
-        return random_swap(text)
+class SimpleTextDataset(Dataset):
+    def __init__(self, texts):
+        self.texts = texts
+    def __len__(self):
+        return len(self.texts)
+    def __getitem__(self, idx):
+        return self.texts[idx]
+
+
+def clean_synopsis(text):
+    if text is None or not isinstance(text, str):
+        return ""
+
+    text = re.sub(r'\(Source:.*?\)', '', text)
+    text = re.sub(r'\[Written by.*?\]', '', text)
+    text = text.replace('\n', ' ').replace('\r', ' ')
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
+def format_as_story(title, genres, synopsis):
+    synopsis = clean_synopsis(synopsis)
+
+    if isinstance(genres, (list, np.ndarray)):
+        genres_list = list(genres)
     else:
-        return text
+        genres_clean = str(genres).translate(str.maketrans('', '', "[]'"))
+        genres_list = [g.strip() for g in genres_clean.split(',') if g.strip()]
 
-def similarity_anime(genres1, genres2):
-    set1 = set(map(str.lower, map(str.strip, genres1)))
-    set2 = set(map(str.lower, map(str.strip, genres2)))
+    if len(genres_list) > 1:
+        genres_str = ", ".join(genres_list[:-1]) + " and " + genres_list[-1]
+    elif len(genres_list) == 1:
+        genres_str = genres_list[0]
+    else:
+        genres_str = "various themes"
 
-    if not set1 or not set2:
-        return -1
-
-    jaccard = len(set1 & set2) / len(set1 | set2)
-
-    return 1 if jaccard >= 0.4 else -1
+    return f"This is an {genres_str} anime titled {title}. The story follows: {synopsis}"
 
 
-def preprocessing_data(filepath:str, num_pairs=5000):
+def preprocessing_triplets(filepath: str, num_triplets=5000):
     df = pd.read_parquet(filepath)
-    df = df[df["genres"].notna()]
-    text = [f"{titles}.{synopsis}" for titles, synopsis in zip(df["title"], df["synopsis"])]
+    df = df[df["genres"].notna() & df["synopsis"].notna()].reset_index(drop=True)
+
+    text_list = []
+    print("Подготовка текстов...")
+    for i in range(len(df)):
+        synopsis = clean_synopsis(df['synopsis'].iloc[i])
+        title = df['title'].iloc[i]
+        genres = df['genres'].iloc[i]
+
+        if random.random() > 0.5:
+            text = format_as_story(title, genres, synopsis)
+        else:
+            text = f"{title}. {synopsis}"
+
+        text_list.append(text)
+
     n = len(df)
-    pairs = []
-    attempts = 0
-    max_attempts = num_pairs * 20
-    seen = set()
-    while len(pairs) < num_pairs:
+    triplets = []
+    print("Начинаю поиск троек...")
 
-        anime_1, anime_2 = random.sample(range(n), 2)
-        pair = tuple(sorted((anime_1, anime_2)))
-        if pair in seen:
-            continue
-        seen.add(pair)
+    while len(triplets) < num_triplets:
+        idx_a = random.randint(0, n - 1)
+        genres_a = set(df["genres"].iloc[idx_a])
 
-        label = similarity_anime(df["genres"].iloc[anime_1], df["genres"].iloc[anime_2])
+        candidate_indices = random.sample(range(n), 200)
 
-        if label == 1 and sum(l == 1 for _, _, l in pairs) >= num_pairs // 2:
-            continue
-        if label == 0 and sum(l == -1 for _, _, l in pairs) >= num_pairs // 2:
-            continue
+        pos_idx = None
+        neg_idx = None
 
-        pairs.append((text[anime_1], text[anime_2], label))
-        print(f"Overall:{pairs}")
+        for idx_c in candidate_indices:
+            if idx_a == idx_c: continue
 
-    if attempts >= max_attempts:
-        print("Достигнут предел попыток — возможно, не хватает сбалансированных пар.")
+            genres_c = set(df["genres"].iloc[idx_c])
+            intersection = len(genres_a & genres_c)
+            union = len(genres_a | genres_c)
+            jaccard = intersection / union if union > 0 else 0
 
-    save_path = os.path.join(os.path.dirname(__file__), "../../data/processed/anime_pairs.parquet")
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    pd.DataFrame(pairs, columns=["text1", "text2", "label"]).to_parquet(save_path, index=False, compression="gzip")
-    print("Сохранено:", save_path)
+            if jaccard >= 0.6 and pos_idx is None:
+                pos_idx = idx_c
+
+            elif jaccard < 0.2 and neg_idx is None:
+                neg_idx = idx_c
+
+            if pos_idx is not None and neg_idx is not None:
+                triplets.append((text_list[idx_a], text_list[pos_idx], text_list[neg_idx]))
+                break
+
+    save_path = os.path.join(os.path.dirname(__file__), "../../data/processed/anime_triplets.parquet")
+    pd.DataFrame(triplets, columns=["anchor", "positive", "negative"]).to_parquet(save_path, index=False)
+    print(f"Готово! Сохранено {len(triplets)} троек.")
 
 
-def move_to_device(item_1, item_2, y, device):
-    item_1 = {k: v.to(device) for k, v in item_1.items()}
-    item_2 = {k: v.to(device) for k, v in item_2.items()}
-    y = y.to(device)
-    return item_1, item_2, y
+def move_to_device(anchor, pos, neg, device):
+    def prepare_batch(batch, dev):
+        return {k: v.to(dev) for k, v in batch.items()}
+
+    return prepare_batch(anchor, device), prepare_batch(pos, device), prepare_batch(neg, device)
 
 
 def save_embedding_of_all_anime():
-    tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
-
-    class PredictionBert(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.bert_model = BertModel.from_pretrained("google-bert/bert-base-uncased")
-            self.head = nn.Sequential(
-                nn.Dropout(0.3),
-                nn.Linear(768, 512),
-                nn.ReLU(),
-                nn.Linear(512, 256),
-                nn.BatchNorm1d(256)
-            )
-
-        def forward(self, **x):
-            outputs = self.bert_model(**x)
-            x = outputs.pooler_output
-            x = self.head(x)
-            x = F.normalize(x, p=2, dim=1)
-            return x
-
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    filepath = os.path.join(BASE_DIR, "../../data/embeddings/anime_recommender_alpha.pt")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    weights_path = os.path.join(BASE_DIR, "../../data/embeddings/anime_recommender_MiniLM-L6_v1.pt")
+    data_path = os.path.join(BASE_DIR, "../../data/processed/parsed_anime_data.parquet")
+    save_path = os.path.join(BASE_DIR, "../../data/embeddings/embedding_of_all_anime_MiniLM.npy")
 
-    model = PredictionBert().to(device)
-    model.load_state_dict(torch.load(filepath, map_location=device))
+    tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+    model = AnimeRecommender().to(device)
+    model.load_state_dict(torch.load(weights_path, map_location=device))
     model.eval()
 
-    df = pd.read_parquet(
-        os.path.join(BASE_DIR, "../../data/processed/parsed_anime_data.parquet")
-    )
+    df = pd.read_parquet(data_path)
+    texts = []
+    for i, row in df.iterrows():
+        genres_str = ", ".join(row["genres"]) if isinstance(row["genres"], list) else str(row["genres"])
+        text = f"{row['title']}. {genres_str}. {row['synopsis']}"
+        texts.append(text)
 
-    anime_texts = [f"{t}. {s}" for t, s in zip(df["title"], df["synopsis"])]
-    anime_titles = df["title"].tolist()
+    dataset = SimpleTextDataset(texts)
+    loader = DataLoader(dataset, batch_size=32, shuffle=False)
 
-    embeddings_list = []
+    all_embeddings = []
 
-    with torch.no_grad():
-        for text in anime_texts:
-            tokenized = tokenizer(
-                text,
+    print(f"Генерация эмбеддингов для {len(texts)} аниме на {device}...")
+    with torch.inference_mode():
+        for batch_texts in loader:
+            inputs = tokenizer(
+                list(batch_texts),
+                padding=True,
                 truncation=True,
-                return_tensors="pt",
+                max_length=256,
+                return_tensors="pt"
             ).to(device)
 
-            emb = model(**tokenized)
-            embeddings_list.append(emb.cpu().numpy())
+            embeddings = model(**inputs)
+            all_embeddings.append(embeddings.cpu().numpy())
 
-    embeddings_matrix = np.vstack(embeddings_list).astype("float32")
-    np.save(
-        os.path.join(BASE_DIR, "../../data/embeddings/embedding_of_all_anime.npy"),
-        embeddings_matrix,
-    )
+    embeddings_matrix = np.vstack(all_embeddings).astype("float32")
+    np.save(save_path, embeddings_matrix)
+    print(f"Готово! Матрица {embeddings_matrix.shape} сохранена в {save_path}")
 
-def get_augmentation():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-    df = pd.read_parquet(os.path.join(BASE_DIR, "../../data/processed/anime_pairs.parquet"))
-
-    new_pairs = []
-
-    for i in range(len(df)):
-        text1 = df.loc[i, "text1"]
-        text2 = df.loc[i, "text2"]
-        label = df.loc[i, "label"]
-
-        aug_text1 = text_augment(text1)
-        aug_text2 = text_augment(text2)
-
-        new_pairs.append((aug_text1, text2, label))
-        new_pairs.append((text1, aug_text2, label))
-
-    print("Аугментация завершена.")
-
-    aug_df = pd.DataFrame(new_pairs, columns=["text1", "text2", "label"])
-
-    combined_df = pd.concat([df, aug_df])
-
-    final_df = combined_df.sample(frac=1).reset_index(drop=True)
-
-    final_df.to_parquet(os.path.join(BASE_DIR, "../../data/processed/anime_pairs_augmented.parquet"), index=False, compression="gzip")
-
-    print(f"Оригинал: {len(df)}, Итого: {len(final_df)}")
-
-def get_synopsis(name: str, filepath: str):
-    anime_list = pd.read_parquet(filepath)
-
-    anime = anime_list.loc[anime_list['title'] == name]
-
-    if anime.empty:
-        raise ValueError(f"Anime '{name}' not found in dataset")
-
-    return anime.iloc[0]['synopsis']
-
-def filter_by_genres(query_genres, candidate_anime_list):
-    recommended = []
-    for anime in candidate_anime_list:
-        anime_genres = anime.genres
-        if any(g in query_genres for g in anime_genres):
-            recommended.append(anime)
-    return recommended

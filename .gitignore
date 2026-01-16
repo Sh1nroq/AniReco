@@ -7,3 +7,4 @@ data/embeddings/anime_recommender_v1.pt
 .env
 .idea/
 src/model/__pycache__/
+.venv

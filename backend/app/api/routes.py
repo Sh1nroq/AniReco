@@ -12,7 +12,7 @@ async def user_request(
         data: RecommendationRequest,
         recommender: RecommenderService = Depends(get_recommender)
 ):
-    result = await get_recommendation(data.text_query, recommender)
+    result = await get_recommendation(data, recommender)
 
     if not result:
         raise HTTPException(status_code=404, detail="Nothing found!")
