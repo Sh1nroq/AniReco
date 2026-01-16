@@ -13,3 +13,4 @@ src/utils/__pycache__
 qdrant_storage
 backend/app/db/__pycache__/
 backend/app/api/__pycache__/
+./scripts/__pycache__

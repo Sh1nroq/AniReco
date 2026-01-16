@@ -2,15 +2,11 @@ import random
 import os
 import re
 
-from pandas.core.interchange.dataframe_protocol import DataFrame
 from torch.utils.data import DataLoader, Dataset
-from transformers import AutoTokenizer, BertModel, AutoModel
+from transformers import AutoTokenizer
 import pandas as pd
 import numpy as np
-import torch.nn.functional as F
 import torch
-import tqdm
-from torch import nn
 
 from src.model.architecture import AnimeRecommender
 

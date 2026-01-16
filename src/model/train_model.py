@@ -1,8 +1,8 @@
 import os.path
 from torch.amp import autocast, GradScaler
 import torch
-from torch import nn, no_grad
-from transformers import AutoTokenizer, AutoModel
+from torch import nn
+from transformers import AutoTokenizer
 
 from src.model.architecture import AnimeRecommender
 from src.model.my_anime_dataset import MyAnimeDataset

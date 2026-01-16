@@ -2,9 +2,7 @@ from qdrant_client import QdrantClient
 
 from backend.app.config import settings
 import torch
-from torch import nn
 from transformers import AutoTokenizer
-import torch.nn.functional as F
 
 from src.model.architecture import AnimeRecommender
 
