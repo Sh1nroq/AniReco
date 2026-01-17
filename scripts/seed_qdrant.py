@@ -7,7 +7,7 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 
 def migrate_data_to_qdrant():
     BASE_DIR = Path(__file__).resolve().parent.parent
-    DF_DIR = BASE_DIR / "data" / "processed" / "parsed_anime_data_to_qdrant.parquet"
+    DF_DIR = BASE_DIR / "data" / "processed" / "parsed_anime_data.parquet"
     EMB_DIR = BASE_DIR / "data" / "embeddings" / "embedding_of_all_anime_MiniLM.npy"
 
     df_anime = pd.read_parquet(DF_DIR)

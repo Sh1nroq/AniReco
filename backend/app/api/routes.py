@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from backend.app.schemas import RecommendationRequest
+from backend.app.schemas import RecommendationRequest, RecommendationResponse
 from backend.app.services import get_recommendation
 from backend.app.api.deps import get_recommender
 from src.model.inference import RecommenderService
@@ -7,7 +7,7 @@ from src.model.inference import RecommenderService
 router = APIRouter()
 
 
-@router.post("/recommend")  # Меняем на POST
+@router.post("/recommend", response_model= RecommendationResponse)  # Меняем на POST
 async def user_request(
         data: RecommendationRequest,
         recommender: RecommenderService = Depends(get_recommender)
@@ -16,4 +16,4 @@ async def user_request(
 
     if not result:
         raise HTTPException(status_code=404, detail="Nothing found!")
-    return result
+    return {"model_response": result}

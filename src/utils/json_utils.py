@@ -12,6 +12,7 @@ def json_parser(filepath: str):
     parsed_info = []
 
     for record in data:
+        mal_id = record.get("mal_id", "")
         title = record.get("title", "")
         genres = record.get("genres", [])
         synopsis = record.get("synopsis", "")
@@ -24,14 +25,16 @@ def json_parser(filepath: str):
         if score is not None and score > 6.5 and type in ("TV","Movie"):
             parsed_info.append(
                 (
+                    mal_id,
                     title,
                     [g["name"] for g in genres],
                     synopsis,
                     score,
+                    type
                 )
             )
     DIR_BASE = os.path.dirname(os.path.abspath(__file__))
-    df = pd.DataFrame(parsed_info, columns=["title", "genres", "synopsis", "score"])
+    df = pd.DataFrame(parsed_info, columns=["mal_id","title", "genres", "synopsis", "score", "type"])
     df.to_parquet(
         os.path.join(DIR_BASE, "../../data/processed/parsed_anime_data.parquet"),
         index=False,
