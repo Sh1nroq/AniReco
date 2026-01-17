@@ -3,10 +3,20 @@ from sqlalchemy import select, or_
 from backend.app.db.postgres import async_session, AnimeInformation
 from backend.app.db.qdrant import get_similar_emb
 
+
 def extract_keywords(text: str):
-    clean_text = re.sub(r'[^a-zA-Z0-9\s-]', '', text.lower())
-    words = clean_text.split()
-    return [w for w in words if len(w) >= 3]
+    text = re.sub(r'[^a-zA-Z0-9\s-]', '', text.lower())
+
+    STOP_WORDS = {
+        'anime', 'story', 'follows', 'characters', 'plot', 'centers',
+        'world', 'life', 'finds', 'series', 'everything', 'things',
+        'years', 'high', 'school', 'striving', 'intense', 'each',
+        'both', 'their', 'driven', 'sense', 'testing', 'lives'
+    }
+
+    words = text.split()
+    keywords = [w for w in words if len(w) > 3 and w not in STOP_WORDS]
+    return keywords
 
 
 async def get_keyword_results(session, keywords):
@@ -29,38 +39,45 @@ async def get_recommendation(data, recommender):
 
     async with async_session() as session:
         emb = recommender.get_embedding(text)
-        qdrant_ids = get_similar_emb(emb, recommender.client)
+        qdrant_results = get_similar_emb(emb, recommender.client)  # список (id, score)
 
-        sql_keywords = keywords[:15]
+        sql_keywords = keywords[:5]
         keyword_anime = await get_keyword_results(session, sql_keywords)
 
         scores = {}
 
-        for i, m_id in enumerate(qdrant_ids):
-            scores[m_id] = scores.get(m_id, 0) + (20 - i)
+        THRESHOLD = 0.70
+        for i, (m_id, q_score) in enumerate(qdrant_results):
+            if q_score < THRESHOLD:
+                continue
 
-        for anime in keyword_anime:
-            m_id = anime.mal_id
-            title_lower = anime.title.lower()
-            desc_lower = anime.description.lower()
+            scores[m_id] = scores.get(m_id, 0) + (1.0 / (i + 60))
 
-            bonus = 0
-            for kw in sql_keywords:
-                if kw in title_lower:
-                    bonus += 5
-                elif kw in desc_lower:
-                    bonus += 1
-
-            scores[m_id] = scores.get(m_id, 0) + bonus
+        for i, anime in enumerate(keyword_anime):
+            if anime.mal_id in scores or len(keywords) < 3:
+                scores[anime.mal_id] = scores.get(anime.mal_id, 0) + (1.0 / (i + 60))
 
         sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
-        top_ids = sorted_ids[:10]
 
-        query = select(AnimeInformation).where(AnimeInformation.mal_id.in_(top_ids))
+        query = select(AnimeInformation).where(AnimeInformation.mal_id.in_(sorted_ids))
         result = await session.execute(query)
         anime_list = result.scalars().all()
+        anime_dict = {a.mal_id: a for a in anime_list}
 
-        anime_dict = {anime.mal_id: anime for anime in anime_list}
-        final_results = [anime_dict[m_id] for m_id in top_ids if m_id in anime_dict]
+        final_results = []
+        seen_titles = set()
+
+        for m_id in sorted_ids:
+            if m_id not in anime_dict: continue
+            anime = anime_dict[m_id]
+
+            title_stub = anime.title[:7].lower()
+
+            if title_stub not in seen_titles:
+                final_results.append(anime)
+                seen_titles.add(title_stub)
+
+            if len(final_results) >= 10:
+                break
 
         return final_results
