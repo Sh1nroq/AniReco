@@ -3,3 +3,14 @@ data/embedding_of_all_anime.npy
 data/raw/anime.json
 data/processed
 data/raw
+data/embeddings/anime_recommender_v1.pt
+.env
+.idea/
+src/model/__pycache__/
+.venv
+backend/app/__pycache__/
+src/utils/__pycache__
+qdrant_storage
+backend/app/db/__pycache__/
+backend/app/api/__pycache__/
+./scripts/__pycache__

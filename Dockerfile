@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y \
 
 # Обновляем pip и копируем зависимости
 RUN pip install --no-cache-dir --upgrade pip
-COPY requirements.txt .
+COPY requirements-ml.txt .
 
 # Теперь установка должна пройти успешно
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-ml.txt
 
 COPY ./src ./src
 COPY ./scripts ./scripts

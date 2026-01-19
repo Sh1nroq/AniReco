@@ -1,78 +1,33 @@
-import os.path
-from src.utils.utils import get_synopsis
-import faiss
-import pandas as pd
+from qdrant_client import QdrantClient
+
+from backend.app.config import settings
 import torch
-from torch import nn
-from transformers import AutoTokenizer, BertModel
-import torch.nn.functional as F
-import numpy as np
-from pathlib import Path
+from transformers import AutoTokenizer
 
-class PredictionBert(torch.nn.Module):
+from src.model.architecture import AnimeRecommender
+
+
+class RecommenderService:
+
     def __init__(self):
-        super().__init__()
-        self.bert_model = BertModel.from_pretrained("google-bert/bert-base-uncased")
-        self.head = nn.Sequential(
-            nn.Dropout(0.3),
-            nn.Linear(768, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256)
-        )
+        self.device = settings.DEVICE
+        self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+        self.client = QdrantClient(url="http://localhost:6333")
 
-    def forward(self, **x):
-        outputs = self.bert_model(**x)
-        x = outputs.pooler_output
-        x = self.head(x)
-        x = F.normalize(x, p=2, dim=1)
-        return x
+        self.model = AnimeRecommender().to(self.device)
+        self.model.load_state_dict(torch.load(settings.MODEL_PATH, map_location=self.device))
+        self.model.eval()
+        print("Model loaded successfully")
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-filepath = ROOT_DIR / "data" / "embeddings" / "anime_recommender_alpha.pt"
-filepath_anime = ROOT_DIR / "data" / "processed" / "parsed_anime_data.parquet"
-embeddings_path = ROOT_DIR / "data" / "embeddings" / "embedding_of_all_anime.npy"
+    def get_embedding(self, text:str):
+        tokens = self.tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=512
+        ).to(self.device)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+        with torch.no_grad():
+            query_emb = self.model(**tokens).cpu().numpy()[0].tolist()
 
-model = PredictionBert().to(device)
-model.load_state_dict(torch.load(filepath, map_location=device))
-model.eval()
-
-tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
-
-embeddings_matrix = np.load(embeddings_path)
-
-anime = pd.read_parquet(filepath_anime)
-anime_titles = anime["title"]
-
-dim = embeddings_matrix.shape[1]
-index = faiss.IndexFlatIP(dim)
-index.add(embeddings_matrix)
-print(f"Добавлено {index.ntotal} аниме в FAISS индекс")
-
-name = input()
-query = get_synopsis(name, filepath_anime)
-
-tokens = tokenizer(
-    query, return_tensors="pt", truncation=True
-).to(device)
-
-with torch.no_grad():
-    query_emb = model(**tokens).cpu().numpy()
-
-distances, indices = index.search(query_emb, k=100)
-
-title = []
-anime_genres_map = dict(zip(anime["title"], anime["genres"]))
-
-print("\nРекомендации по запросу:")
-genres_query = anime_genres_map.get(name, [])
-num = 1
-for rank, (idx, dist) in enumerate(zip(indices[0], distances[0]), start=1):
-    title = anime_titles[idx]
-    genres_anime = anime_genres_map.get(title, [])
-
-    if any(g in genres_query for g in genres_anime):
-        print(f"{num}. {title} (similarity={dist:.4f})")
-        num += 1
+        return query_emb
