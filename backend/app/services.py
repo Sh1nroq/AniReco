@@ -6,23 +6,19 @@ from backend.app.db.qdrant import get_similar_emb
 
 def extract_keywords(text: str):
     text = re.sub(r'[^a-zA-Z0-9\s-]', '', text.lower())
-
     STOP_WORDS = {
         'anime', 'story', 'follows', 'characters', 'plot', 'centers',
         'world', 'life', 'finds', 'series', 'everything', 'things',
         'years', 'high', 'school', 'striving', 'intense', 'each',
-        'both', 'their', 'driven', 'sense', 'testing', 'lives'
+        'both', 'their', 'driven', 'sense', 'testing', 'lives',
+        'want', 'find', 'mood', 'about', 'with'
     }
-
     words = text.split()
-    keywords = [w for w in words if len(w) > 3 and w not in STOP_WORDS]
-    return keywords
+    return [w for w in words if len(w) > 3 and w not in STOP_WORDS]
 
 
 async def get_keyword_results(session, keywords):
-    if not keywords:
-        return []
-
+    if not keywords: return []
     conditions = []
     for word in keywords:
         conditions.append(AnimeInformation.title.ilike(f"%{word}%"))
@@ -37,20 +33,29 @@ async def get_recommendation(data, recommender):
     text = data.text_query
     keywords = extract_keywords(text)
 
+    user_filters = {
+        "genre": data.genre,
+        "type": data.type,
+        "year_min": data.year_min,  # int или None
+        "year_max": data.year_max  # int или None
+    }
+
     async with async_session() as session:
         emb = recommender.get_embedding(text)
-        qdrant_results = get_similar_emb(emb, recommender.client)  # список (id, score)
+
+        qdrant_results = get_similar_emb(emb, recommender.client, filters=user_filters)
 
         sql_keywords = keywords[:5]
-        keyword_anime = await get_keyword_results(session, sql_keywords)
+        keyword_anime = []
+        if len(keywords) < 7:
+            keyword_anime = await get_keyword_results(session, sql_keywords)
 
         scores = {}
 
-        THRESHOLD = 0.70
+        THRESHOLD = 0.40
         for i, (m_id, q_score) in enumerate(qdrant_results):
             if q_score < THRESHOLD:
                 continue
-
             scores[m_id] = scores.get(m_id, 0) + (1.0 / (i + 60))
 
         for i, anime in enumerate(keyword_anime):
@@ -58,6 +63,12 @@ async def get_recommendation(data, recommender):
                 scores[anime.mal_id] = scores.get(anime.mal_id, 0) + (1.0 / (i + 60))
 
         sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+
+        if not sorted_ids and qdrant_results:
+            sorted_ids = [res[0] for res in qdrant_results]
+
+        if not sorted_ids:
+            return []
 
         query = select(AnimeInformation).where(AnimeInformation.mal_id.in_(sorted_ids))
         result = await session.execute(query)
@@ -72,12 +83,11 @@ async def get_recommendation(data, recommender):
             anime = anime_dict[m_id]
 
             title_stub = anime.title[:7].lower()
-
             if title_stub not in seen_titles:
                 final_results.append(anime)
                 seen_titles.add(title_stub)
 
-            if len(final_results) >= 10:
+            if len(final_results) >= 50:
                 break
 
         return final_results
