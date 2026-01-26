@@ -8,82 +8,134 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-// import { useRef, useEffect } from 'react';
-// import { Textarea } from "@/components/ui/textarea";
 
-// Данные для фильтров
-const filterOptions = {
-  genres: [{ value: "action", label: "Action" }, { value: "comedy", label: "Comedy" }, { value: "drama", label: "Drama" }],
-  ratings: [{ value: "pg13", label: "PG-13" }, { value: "r", label: "R - 17+" }],
-  types: [{ value: "tv", label: "TV Series" }, { value: "movie", label: "Movie" }]
-};
+// --- 1. ОПРЕДЕЛЯЕМ ТИПЫ (INTERFACES) ---
 
+// Тип для одного варианта фильтра (например, {value: "action", label: "Action"})
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+// Тип для объекта аниме, который приходит с бэкенда
 interface Anime {
   mal_id: number;
   title: string;
   description: string;
-  score?: number;     // Optional[float]
-  image_url?: string; // Optional[str]
-  status?: string;    // Optional[str]
+  score?: number;
+  image_url?: string;
+  status?: string;
 }
+
+// Тип для пропсов компонента фильтра
+interface FilterComboboxProps {
+  title: string;
+  options: FilterOption[];
+  value: string;
+  setValue: (value: string) => void;
+}
+
+// Тип для пропсов карточки
+interface AnimeCardProps {
+  anime: Anime;
+}
+
+// Тип ответа от API
+interface RecommendationResponse {
+  model_response: Anime[];
+}
+
+// --- 2. ДАННЫЕ И ХЕЛПЕРЫ ---
+
+const filterOptions = {
+  genres: [
+    { value: "Action", label: "Action" },
+    { value: "Adventure", label: "Adventure" },
+    { value: "Comedy", label: "Comedy" },
+    { value: "Drama", label: "Drama" },
+    { value: "Sci-Fi", label: "Sci-Fi" },
+    { value: "Slice of Life", label: "Slice of Life" },
+    { value: "Fantasy", label: "Fantasy" },
+    { value: "Romance", label: "Romance" },
+    { value: "Mystery", label: "Mystery" },
+    { value: "Horror", label: "Horror" },
+    { value: "Sports", label: "Sports" },
+    { value: "Supernatural", label: "Supernatural" },
+  ],
+  types: [
+    { value: "tv", label: "TV Series" },
+    { value: "movie", label: "Movie" },
+    { value: "ova", label: "OVA" },
+    { value: "special", label: "Special" }
+  ],
+  periods: [
+    { value: "2020s", label: "2020s (Modern)" },
+    { value: "2010s", label: "2010s" },
+    { value: "2000s", label: "2000s" },
+    { value: "1990s", label: "1990s" },
+    { value: "old",   label: "Old School (Pre-90s)" },
+  ]
+};
+
+const getYearRange = (periodValue: string) => {
+  switch (periodValue) {
+    case "2020s": return { min: 2020, max: 2029 };
+    case "2010s": return { min: 2010, max: 2019 };
+    case "2000s": return { min: 2000, max: 2009 };
+    case "1990s": return { min: 1990, max: 1999 };
+    case "old":   return { min: 1900, max: 1989 };
+    default:      return { min: null, max: null };
+  }
+};
+
+// --- 3. ГЛАВНЫЙ КОМПОНЕНТ ---
 
 export default function AnimeApp() {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("");
-  const [rating, setRating] = useState("");
+  const [rating, setRating] = useState(""); // Используем как "Period"
   const [type, setType] = useState("");
 
-  // ВОТ ЭТОГО НЕ ХВАТАЛО: Состояние для результатов
+  // Явно указываем, что results - это массив объектов Anime
   const [results, setResults] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // useEffect(() => {
-  //   const textarea = textareaRef.current;
-  //   if (textarea) {
-  //     // Сбрасываем высоту, чтобы она пересчиталась правильно при удалении текста
-  //     textarea.style.height = "0px";
-  //     // Устанавливаем высоту равную высоте контента (scrollHeight)
-  //     // Ограничим максимальную высоту, например, 200px, чтобы поиск не занял весь экран
-  //     const scrollHeight = textarea.scrollHeight;
-  //     textarea.style.height = Math.min(scrollHeight, 200) + "px";
-  //   }
-  // }, [query]); // Срабатывает каждый раз, когда меняется текст запроса
-  //
-  // Функция поиска (пока с моковыми данными)
-const handleSearch = async () => {
-  if (!query) return;
-  setLoading(true);
+  const handleSearch = async () => {
+    if (!query && !genre && !type && !rating) return;
+    setLoading(true);
 
-  try {
-    const response = await fetch('http://127.0.0.1:8000/recommend', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Шлем ТОЛЬКО text_query, как прописано в твоем Pydantic классе
-      body: JSON.stringify({
-        text_query: query
-      }),
-    });
+    const { min, max } = getYearRange(rating);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Ошибка валидации:", errorData.detail);
-      return;
+    try {
+      const response = await fetch('http://127.0.0.1:8000/recommend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text_query: query,
+          genre: genre || null,
+          type: type || null,
+          year_min: min,
+          year_max: max
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error:", errorData);
+        return;
+      }
+
+      const data: RecommendationResponse = await response.json();
+      setResults(data.model_response);
+
+    } catch (error) {
+      console.error("Network Error:", error);
+    } finally {
+      setLoading(false);
     }
-
-    const data = await response.json();
-
-    // Если бэкенд возвращает RecommendationResponse,
-    // то список лежит в data.model_response
-    setResults(data.model_response);
-
-  } catch (error) {
-    console.error("Ошибка сети:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-zinc-800">
@@ -93,23 +145,40 @@ const handleSearch = async () => {
             AniReco
           </h1>
           <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
-            Персонализированная система рекомендаций аниме с языковой моделью.
+            AI-powered anime recommendation system. <br/>
+            Search by plot, vibe, or semantic description.
           </p>
         </div>
 
         <section className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl backdrop-blur-sm space-y-6 shadow-2xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FilterCombobox title="Genre" options={filterOptions.genres} value={genre} setValue={setGenre} />
-            <FilterCombobox title="Rating" options={filterOptions.ratings} value={rating} setValue={setRating} />
-            <FilterCombobox title="Type" options={filterOptions.types} value={type} setValue={setType} />
+            <FilterCombobox
+              title="Genre"
+              options={filterOptions.genres}
+              value={genre}
+              setValue={setGenre}
+            />
+            <FilterCombobox
+              title="Period"
+              options={filterOptions.periods}
+              value={rating}
+              setValue={setRating}
+            />
+            <FilterCombobox
+              title="Type"
+              options={filterOptions.types}
+              value={type}
+              setValue={setType}
+            />
           </div>
 
           <div className="relative flex items-center group">
             <Search className="absolute left-4 h-5 w-5 text-zinc-500 group-focus-within:text-zinc-200 transition-colors" />
             <Input
-              placeholder="Введите описание (например: темное фэнтези с крутым сюжетом)..."
+              placeholder="Describe what you want to watch (e.g. 'Cyberpunk city with a dark atmosphere')..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="pl-12 h-14 bg-zinc-950/50 border-zinc-800 text-lg rounded-xl focus-visible:ring-zinc-700 transition-all"
             />
             <Button
@@ -117,35 +186,31 @@ const handleSearch = async () => {
               disabled={loading}
               className="absolute right-2 h-10 px-6 bg-zinc-50 text-zinc-950 hover:bg-zinc-200 font-bold rounded-lg transition-all"
             >
-              {loading ? "..." : "Найти"}
+              {loading ? "Thinking..." : "Find"}
             </Button>
           </div>
         </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {results.map((anime) => (
-            <AnimeCard key={anime.mal_id} anime={anime} />
-          ))}
-        </div>
+        {results.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {results.map((anime) => (
+              <AnimeCard key={anime.mal_id} anime={anime} />
+            ))}
+          </div>
+        )}
+
+        {results.length === 0 && !loading && (
+           <div className="text-center text-zinc-600 mt-10">
+             Try searching for something or apply filters.
+           </div>
+        )}
       </main>
     </div>
   );
 }
 
-interface FilterOption {
-  value: string;
-  label: string;
-}
+// --- КОМПОНЕНТЫ UI (Теперь типизированные) ---
 
-// 2. Создаем интерфейс для пропсов самого компонента
-interface FilterComboboxProps {
-  title: string;
-  options: FilterOption[]; // массив объектов FilterOption
-  value: string;
-  setValue: (value: string) => void; // функция, которая принимает строку и ничего не возвращает
-}
-
-// 3. Указываем эти типы в параметрах функции
 function FilterCombobox({ title, options, value, setValue }: FilterComboboxProps) {
   const [open, setOpen] = useState(false);
 
@@ -154,42 +219,39 @@ function FilterCombobox({ title, options, value, setValue }: FilterComboboxProps
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="w-full justify-between h-11 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all rounded-xl text-zinc-400"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-11 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-50 transition-all rounded-xl text-zinc-400 font-normal"
         >
-          {value ? options.find((o) => o.value === value)?.label : `Select ${title}`}
+          {value
+            ? options.find((o) => o.value === value)?.label
+            : `Select ${title}`}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      {/* Добавляем класс dark сюда и явно прописываем фон */}
-      <PopoverContent className="w-[200px] p-0 bg-zinc-950 border-zinc-800 shadow-2xl overflow-hidden">
+      <PopoverContent className="w-[200px] p-0 bg-zinc-950 border-zinc-800 shadow-2xl">
         <Command className="bg-zinc-950 text-zinc-200">
           <CommandInput placeholder={`Search ${title}...`} className="h-9 border-none focus:ring-0" />
           <CommandList className="border-t border-zinc-800">
             <CommandEmpty className="py-2 px-4 text-xs text-zinc-500">No results.</CommandEmpty>
-            <CommandGroup className="p-1">
+            <CommandGroup>
               {options.map((opt) => (
                 <CommandItem
                   key={opt.value}
                   value={opt.value}
-                  onSelect={(v) => {
-                    setValue(v === value ? "" : v);
+                  onSelect={(currentValue) => {
+                    setValue(currentValue === value ? "" : opt.value);
                     setOpen(false);
                   }}
-                  // text-zinc-400 — теперь текст всех элементов виден сразу (серый)
-                  // aria-selected — стиль для элемента, на который навели или который выбрали
-                  className="rounded-lg cursor-pointer flex items-center px-2 py-2 text-sm outline-none
-                             text-zinc-400
-                             aria-selected:bg-zinc-800 aria-selected:text-zinc-50
-                             hover:bg-zinc-800 hover:text-zinc-50 transition-colors duration-200"
+                  className="cursor-pointer flex items-center px-2 py-2 text-sm text-zinc-400 aria-selected:bg-zinc-800 aria-selected:text-zinc-50 hover:bg-zinc-800 hover:text-zinc-50"
                 >
-                  {/* Галочка тоже должна быть видна только у выбранного */}
-                  <Check className={cn(
-                    "mr-2 h-4 w-4 text-primary",
-                    value === opt.value ? "opacity-100" : "opacity-0"
-                  )} />
-
-                  {/* Само название жанра */}
-                  <span className="flex-1">{opt.label}</span>
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4 text-white",
+                      value === opt.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {opt.label}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -200,30 +262,22 @@ function FilterCombobox({ title, options, value, setValue }: FilterComboboxProps
   );
 }
 
-// КОМПОНЕНТ КАРТОЧКИ (тот самый Flip Card)
-function AnimeCard({ anime }: { anime: Anime }) {
+function AnimeCard({ anime }: AnimeCardProps) {
   const malLink = `https://myanimelist.net/anime/${anime.mal_id}`;
 
   return (
-    // Фиксируем высоту всей группы (например, 450px)
     <div className="group perspective w-full h-[450px] cursor-pointer">
       <div className="relative w-full h-full transition-all duration-700 preserve-3d group-hover:rotate-y-180">
-
-        {/* ЛИЦЕВАЯ СТОРОНА */}
+        {/* FRONT */}
         <div className="absolute inset-0 backface-hidden">
           <Card className="w-full h-full overflow-hidden border-zinc-800 bg-zinc-950 rounded-2xl border-[1px] p-0 shadow-2xl">
             <div className="relative w-full h-full">
-              {/* Картинка ВСЕГДА заполняет всё пространство */}
               <img
-                src={anime.image_url || ''}
+                src={anime.image_url || 'https://placehold.co/300x450/18181b/FFF?text=No+Image'}
                 alt={anime.title}
                 className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110"
               />
-
-              {/* Градиент */}
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90" />
-
-              {/* Текст снизу */}
               <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
                 <h3 className="text-white font-bold text-lg leading-tight tracking-tight drop-shadow-md line-clamp-2">
                   {anime.title}
@@ -239,38 +293,37 @@ function AnimeCard({ anime }: { anime: Anime }) {
           </Card>
         </div>
 
-        {/* ОБРАТНАЯ СТОРОНА */}
+        {/* BACK */}
         <div className="absolute inset-0 backface-hidden rotate-y-180">
-          {/* flex-col + justify-between заставляет кнопку «прилипнуть» к низу */}
           <Card className="w-full h-full bg-zinc-900 border-zinc-700 p-6 flex flex-col justify-between shadow-2xl rounded-2xl border-2">
-            <div className="space-y-4 overflow-hidden">
-              <div className="space-y-1">
-                <h3 className="font-bold text-xl text-zinc-50 tracking-tight line-clamp-2 uppercase">
+            <div className="space-y-4 overflow-hidden h-full flex flex-col">
+              <div className="space-y-1 shrink-0">
+                <h3 className="font-bold text-lg text-zinc-50 tracking-tight line-clamp-2 uppercase">
                   {anime.title}
                 </h3>
                 {anime.status && (
                   <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                    Status: {anime.status}
+                    {anime.status}
                   </p>
                 )}
               </div>
+              <div className="h-px bg-zinc-800 w-full shrink-0" />
 
-              <div className="h-px bg-zinc-800 w-full" />
-
-              {/* line-clamp-[10] обрежет текст, если он слишком длинный, чтобы кнопка не уплыла */}
-              <p className="text-sm text-zinc-400 leading-relaxed line-clamp-[10] font-light italic">
-                {anime.description}
-              </p>
+              {/* Прокрутка описания */}
+              <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                 <p className="text-sm text-zinc-400 leading-relaxed font-light italic">
+                  {anime.description || "No description available."}
+                </p>
+              </div>
             </div>
 
-            <Button asChild className="w-full bg-zinc-50 text-zinc-950 hover:bg-zinc-200 rounded-xl font-bold h-12 mt-4 shrink-0 transition-all active:scale-95 shadow-lg shadow-white/5">
+            <Button asChild className="w-full bg-zinc-50 text-zinc-950 hover:bg-zinc-200 rounded-xl font-bold h-12 mt-4 shrink-0 transition-all active:scale-95">
               <a href={malLink} target="_blank" rel="noopener noreferrer">
-                View on MyAnimeList
+                MyAnimeList
               </a>
             </Button>
           </Card>
         </div>
-
       </div>
     </div>
   );

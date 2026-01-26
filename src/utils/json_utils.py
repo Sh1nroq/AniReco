@@ -18,6 +18,11 @@ def json_parser(filepath: str):
         synopsis = record.get("synopsis", "")
         type = record.get("type", "")
         score = record.get("score", [])
+        date_str = record.get("aired", {}).get("from")
+
+        start_year = None
+        if date_str:
+            start_year = int(date_str[:4])
 
         if synopsis is not None:
             synopsis = synopsis.replace("\n\n[Written by MAL Rewrite]", "")
@@ -30,11 +35,12 @@ def json_parser(filepath: str):
                     [g["name"] for g in genres],
                     synopsis,
                     score,
-                    type
+                    type,
+                    start_year
                 )
             )
     DIR_BASE = os.path.dirname(os.path.abspath(__file__))
-    df = pd.DataFrame(parsed_info, columns=["mal_id","title", "genres", "synopsis", "score", "type"])
+    df = pd.DataFrame(parsed_info, columns=["mal_id","title", "genres", "synopsis", "score", "type", "aired"])
     df.to_parquet(
         os.path.join(DIR_BASE, "../../data/processed/parsed_anime_data.parquet"),
         index=False,

@@ -7,6 +7,8 @@ from sqlalchemy.orm import mapped_column
 
 from backend.app.config import settings
 
+from sqlalchemy import text
+
 DATABASE_URL = settings.POSTGRES_URL
 engine = create_async_engine(DATABASE_URL)
 

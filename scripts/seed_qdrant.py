@@ -1,9 +1,18 @@
+import re
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
+
+def extract_year(date_str):
+    if not date_str: return None
+    # Ищем первые 4 цифры подряд (например, из "Oct 4, 2006")
+    match = re.search(r'\d{4}', str(date_str))
+    if match:
+        return int(match.group(0))
+    return None
 
 def migrate_data_to_qdrant():
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,6 +21,12 @@ def migrate_data_to_qdrant():
 
     df_anime = pd.read_parquet(DF_DIR)
     embedding_anime = np.load(EMB_DIR)
+
+    if 'aired' in df_anime.columns:
+        df_anime['start_year'] = df_anime['aired'].apply(extract_year)
+    else:
+        print("Колонка с датой не найдена! Проверь название в паркете.")
+        df_anime['start_year'] = None
 
     df_anime['emb'] = embedding_anime.tolist()
     return df_anime
@@ -58,7 +73,7 @@ for idx, row in data.iterrows():
         print(f"Ошибка в строке {idx}: ожидалось {actual_dim}, пришло {len(vector)}")
         continue
 
-    raw_payload = row.drop(['emb', 'mal_id']).to_dict()
+    raw_payload = row.drop(['emb', 'mal_id', 'aired']).to_dict()
     clean_payload = {k: clean_value(v) for k, v in raw_payload.items()}
 
     points.append(
