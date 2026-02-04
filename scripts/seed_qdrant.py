@@ -19,7 +19,7 @@ def migrate_data_to_qdrant():
     DF_DIR = BASE_DIR / "data" / "processed" / "parsed_anime_data.parquet"
     EMB_DIR = BASE_DIR / "data" / "embeddings" / "embedding_of_all_anime_MiniLM.npy"
 
-    df_anime = pd.read_parquet(DF_DIR)
+    df_anime = pd.read_parquet(DF_DIR).drop("image_url", axis = 1)
     embedding_anime = np.load(EMB_DIR)
 
     if 'aired' in df_anime.columns:

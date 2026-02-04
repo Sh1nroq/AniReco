@@ -20,6 +20,9 @@ class RecommendationRequest(BaseModel):
     year_min: Optional[int] = None
     year_max: Optional[int] = None
     min_score: Optional[float] = None
+    popularity: Optional[int] = None
+    themes: Optional[list[str]] = None
+    sort_by: Optional[str] = "relevance"
 
 class RecommendationResponse(BaseModel):
     model_response: list[AnimeSchema]
