@@ -29,7 +29,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         selected_themes = filters.get("themes")
         if selected_themes and isinstance(selected_themes, list):
             for t in selected_themes:
-                theme_val = t.strip().title()
+                theme_val = t.strip()
 
                 conditions.append(
                     models.FieldCondition(
