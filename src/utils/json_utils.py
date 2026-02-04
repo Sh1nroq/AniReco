@@ -17,7 +17,7 @@ def json_parser(filepath: str):
         synopsis = record.get("synopsis", "")
         type = record.get("type", "")
         score = record.get("score", [])
-        date_str = record.get("year")
+        date_str = record.get("aired", {}).get("from")
         popularity = record.get("popularity", "")
         image_url = record.get("images", {}).get("jpg", {}).get("large_image_url")
 
