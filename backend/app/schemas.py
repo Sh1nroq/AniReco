@@ -15,10 +15,11 @@ class AnimeSchema(BaseModel):
 
 class RecommendationRequest(BaseModel):
     text_query: str
-    genre: Optional[str] = None
+    genres: Optional[list[str]] = None
     type: Optional[str] = None
     year_min: Optional[int] = None
     year_max: Optional[int] = None
+    min_score: Optional[float] = None
 
 class RecommendationResponse(BaseModel):
     model_response: list[AnimeSchema]
