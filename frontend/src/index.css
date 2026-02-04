@@ -136,3 +136,27 @@
     transform: rotateY(180deg);
   }
 }
+
+/* Стилизация скроллбара для всех элементов с классом .custom-scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px; /* Ширина ползунка */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Фон дорожки (делаем прозрачным) */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3f3f46; /* Цвет ползунка (zinc-700) */
+  border-radius: 20px; /* Скругление */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #52525b; /* Цвет при наведении (zinc-600) */
+}
+
+/* Для Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}

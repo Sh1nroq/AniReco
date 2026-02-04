@@ -7,19 +7,33 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
 
     if filters:
         conditions = []
-        if filters.get("genre"):
 
-            genre_val = filters["genre"]
-            if genre_val.islower():
-                if genre_val == "slice of life":
+        selected_genres = filters.get("genres")  # Это теперь список
+        if selected_genres and isinstance(selected_genres, list):
+            for g in selected_genres:
+                genre_val = g.strip()
+                # Обработка регистра (как в твоем коде)
+                if genre_val.lower() == "slice of life":
                     genre_val = "Slice of Life"
-                elif genre_val == "sci-fi":
+                elif genre_val.lower() == "sci-fi":
                     genre_val = "Sci-Fi"
                 else:
                     genre_val = genre_val.title()
 
+                conditions.append(
+                    models.FieldCondition(
+                        key="genres",
+                        match=models.MatchValue(value=genre_val)
+                    )
+                )
+
+        min_score = filters.get("min_score")
+        if min_score is not None:
             conditions.append(
-                models.FieldCondition(key="genres", match=models.MatchValue(value=genre_val))
+                models.FieldCondition(
+                    key="score",  # Убедись, что в payload Qdrant поле называется "score"
+                    range=models.Range(gte=float(min_score))  # gte = Greater Than or Equal
+                )
             )
 
         if filters.get("type"):
