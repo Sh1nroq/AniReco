@@ -34,10 +34,12 @@ async def get_recommendation(data, recommender):
     keywords = extract_keywords(text)
 
     user_filters = {
-        "genre": data.genre,
+        "genres": data.genres,
+        "themes": data.themes,
         "type": data.type,
-        "year_min": data.year_min,  # int или None
-        "year_max": data.year_max  # int или None
+        "year_min": data.year_min,
+        "year_max": data.year_max,
+        "min_score": data.min_score
     }
 
     async with async_session() as session:
@@ -89,5 +91,10 @@ async def get_recommendation(data, recommender):
 
             if len(final_results) >= 50:
                 break
+
+            if data.sort_by == "rating":
+                final_results.sort(key=lambda x: x.score or 0, reverse=True)
+            elif data.sort_by == "popularity":
+                final_results.sort(key=lambda x: x.popularity if x.popularity is not None else 999999)
 
         return final_results

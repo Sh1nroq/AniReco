@@ -14,11 +14,22 @@ def json_parser(filepath: str):
     for record in data:
         mal_id = record.get("mal_id", "")
         title = record.get("title", "")
-        genres = record.get("genres", [])
         synopsis = record.get("synopsis", "")
         type = record.get("type", "")
         score = record.get("score", [])
-        date_str = record.get("aired", {}).get("from")
+        date_str = record.get("year")
+        popularity = record.get("popularity", "")
+        image_url = record.get("images", {}).get("jpg", {}).get("large_image_url")
+
+        raw_genres = record.get("genres") or []
+        raw_themes = record.get("themes") or []
+        raw_demographics = record.get("demographics") or []
+
+        genres_list = [g.get("name") for g in raw_genres if g.get("name")]
+        themes_list = [t.get("name") for t in raw_themes if t.get("name")]
+        demo_list = [d.get("name") for d in raw_demographics if d.get("name")]
+
+        final_themes = themes_list + demo_list
 
         start_year = None
         if date_str:
@@ -27,20 +38,23 @@ def json_parser(filepath: str):
         if synopsis is not None:
             synopsis = synopsis.replace("\n\n[Written by MAL Rewrite]", "")
 
-        if score is not None and score > 6.5 and type in ("TV","Movie"):
+        if score is not None and score > 6.5 and type in ("TV", "Movie"):
             parsed_info.append(
                 (
                     mal_id,
                     title,
-                    [g["name"] for g in genres],
+                    genres_list,
                     synopsis,
                     score,
                     type,
-                    start_year
+                    start_year,
+                    final_themes,
+                    popularity,
+                    image_url
                 )
             )
     DIR_BASE = os.path.dirname(os.path.abspath(__file__))
-    df = pd.DataFrame(parsed_info, columns=["mal_id","title", "genres", "synopsis", "score", "type", "aired"])
+    df = pd.DataFrame(parsed_info, columns=["mal_id","title", "genres", "synopsis", "score", "type", "aired", "themes", "popularity", "image_url"])
     df.to_parquet(
         os.path.join(DIR_BASE, "../../data/processed/parsed_anime_data.parquet"),
         index=False,
