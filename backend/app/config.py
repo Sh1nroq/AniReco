@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     POSTGRES_URL: str = Field(default=...)
 
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_URL: str = "http://qdrant:6333"
     COLLECTION_NAME: str = "Embeddings_of_all_anime"
     DEVICE: str = "cuda"
 

@@ -89,5 +89,11 @@ AniReco/
 ## 🚀 Установка и запуск
 
 ```
-In process
+docker-compose up --build
+
+docker-compose exec backend python scripts/init_db.py
+
+docker-compose exec backend python scripts/migrate_data.py
+
+docker-compose exec backend python scripts/seed_qdrant.py
 ```

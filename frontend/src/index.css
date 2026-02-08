@@ -160,3 +160,11 @@
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;
 }
+
+::-webkit-scrollbar {
+  display: none;
+}
+html {
+  -ms-overflow-style: none;  /* IE и Edge */
+  scrollbar-width: none;  /* Firefox */
+}

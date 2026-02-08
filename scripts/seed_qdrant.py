@@ -6,6 +6,9 @@ import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
+from backend.app.config import settings
+
+
 def extract_year(date_str):
     if not date_str: return None
     # Ищем первые 4 цифры подряд (например, из "Oct 4, 2006")
@@ -31,8 +34,9 @@ def migrate_data_to_qdrant():
     df_anime['emb'] = embedding_anime.tolist()
     return df_anime
 
-client = QdrantClient(url="http://localhost:6333")
-COLLECTION_NAME = "Embeddings_of_all_anime"
+QDRANT_URL = settings.QDRANT_URL
+client = QdrantClient(url=QDRANT_URL)
+COLLECTION_NAME = settings.COLLECTION_NAME
 
 data = migrate_data_to_qdrant()
 
