@@ -1,16 +1,37 @@
-data/embeddings/anime_recommender.pt
-data/embedding_of_all_anime.npy
-data/raw/anime.json
-data/processed
-data/raw
-data/embeddings/anime_recommender_v1.pt
+# --- PYTHON (Backend & ML) ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+venv/
+.venv/
+env/
+
+# --- NODE.JS (Frontend) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+dist/
+dist-ssr/
+
+data/raw/
+data/processed/
+
+# --- CONFIG & SECRETS ---
 .env
+.env.local
+.env.*.local
+
+# --- IDE & OS (Мусор от редактора) ---
 .idea/
-src/model/__pycache__/
-.venv
-backend/app/__pycache__/
-src/utils/__pycache__
-qdrant_storage
-backend/app/db/__pycache__/
-backend/app/api/__pycache__/
-./scripts/__pycache__
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- DATABASES (Docker Volumes) ---
+qdrant_storage/
+postgres_data/

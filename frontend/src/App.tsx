@@ -87,7 +87,7 @@ export default function AnimeApp() {
 
     // Загрузка фильтров из БД при старте
     useEffect(() => {
-        fetch('http://127.0.0.1:8000/filters')
+        fetch('/filters')
             .then(res => res.json())
             .then(data => {
                 // console.log("RECEIVED FILTERS:", data);
@@ -102,7 +102,7 @@ export default function AnimeApp() {
         setLoading(true);
         setHasSearched(false);
         try {
-            const response = await fetch('http://127.0.0.1:8000/recommend', {
+            const response = await fetch('/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

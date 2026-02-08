@@ -73,7 +73,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         # print(f"DEBUG: Применены фильтры: {conditions}")
 
     search_result = client.query_points(
-        collection_name="Embeddings_of_all_anime",
+        collection_name=settings.COLLECTION_NAME,
         query=query_vector,
         query_filter=qdrant_filter,
         with_payload=False,

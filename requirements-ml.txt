@@ -1,9 +1,0 @@
-pandas
-numpy
-transformers
-orjson
-requests
-huggingface_hub
-tqdm
-pyarrow
-fastparquet
