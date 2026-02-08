@@ -75,6 +75,10 @@ async def get_recommendation(data, recommender):
         query = select(AnimeInformation).where(AnimeInformation.mal_id.in_(sorted_ids))
         result = await session.execute(query)
         anime_list = result.scalars().all()
+
+        if data.min_score is not None:
+            anime_list = [a for a in anime_list if (a.score or 0) >= data.min_score]
+
         anime_dict = {a.mal_id: a for a in anime_list}
 
         final_results = []

@@ -38,7 +38,7 @@ def json_parser(filepath: str):
         if synopsis is not None:
             synopsis = synopsis.replace("\n\n[Written by MAL Rewrite]", "")
 
-        if score is not None and score > 6.5 and type in ("TV", "Movie"):
+        if score is not None and score > 6.5 and type in ("TV", "Movie" ):
             parsed_info.append(
                 (
                     mal_id,
