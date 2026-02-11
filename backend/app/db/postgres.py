@@ -23,6 +23,7 @@ class AnimeInformation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str]
+    type: Mapped[str]
     description: Mapped[str]
     mal_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     score: Mapped[float] = mapped_column(Float, nullable=True)

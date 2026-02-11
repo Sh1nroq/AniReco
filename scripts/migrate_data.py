@@ -36,7 +36,6 @@ async def upload_data():
 
     data["genres"] = data["genres"].apply(to_native_list)
     data["themes"] = data["themes"].apply(to_native_list)
-
     data["synopsis"] = data["synopsis"].str.replace("\n\n[Written by MAL Rewrite]", "", regex=False).fillna("")
 
     data_to_insert = data.rename(columns={

@@ -47,13 +47,27 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
                 )
             )
 
-        if filters.get("type"):
-            type_map = {"tv": "TV", "movie": "Movie", "ova": "OVA", "special": "Special"}
-            type_input = filters["type"].lower()
-            type_val = type_map.get(type_input, filters["type"].title())
+        selected_types = filters.get("type")
+        if selected_types and isinstance(selected_types, list):
+            type_map = {
+                "tv": "TV",
+                "movie": "Movie",
+                "ova": "OVA",
+                "special": "Special",
+                "ona": "ONA",
+                "music": "Music"
+            }
+
+            mapped_types = []
+            for t in selected_types:
+                clean_t = t.lower().strip()
+                mapped_types.append(type_map.get(clean_t, t.title()))
 
             conditions.append(
-                models.FieldCondition(key="type", match=models.MatchValue(value=type_val))
+                models.FieldCondition(
+                    key="type",
+                    match=models.MatchAny(any=mapped_types)
+                )
             )
 
         year_min = filters.get("year_min")

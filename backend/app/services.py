@@ -77,10 +77,25 @@ async def get_recommendation(data, recommender):
         result = await session.execute(query)
         anime_list = result.scalars().all()
 
-        if data.min_score is not None:
-            anime_list = [a for a in anime_list if (a.score or 0) >= data.min_score]
+        filtered_list = []
+        for a in anime_list:
+            if data.year_min and (a.start_year or 0) < data.year_min: continue
+            if data.year_max and (a.start_year or 0) > data.year_max: continue
 
-        anime_dict = {a.mal_id: a for a in anime_list}
+            if data.min_score and (a.score or 0) < data.min_score: continue
+
+            if data.type:
+                if a.type not in data.type: continue
+
+            if data.genres:
+                if not all(g in a.genres for g in data.genres): continue
+
+            if data.themes:
+                if not all(t in a.themes for t in data.themes): continue
+
+            filtered_list.append(a)
+
+        anime_dict = {a.mal_id: a for a in filtered_list}
 
         final_results = []
         seen_titles = set()
