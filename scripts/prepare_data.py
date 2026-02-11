@@ -6,7 +6,7 @@ from src.utils.json_utils import json_parser
 def main():
     json_parser("../data/raw/anime.json")
     # preprocessing_triplets("../data/processed/parsed_anime_data.parquet", num_triplets= 10000)
-    # save_embedding_of_all_anime()
+    save_embedding_of_all_anime()
 
 if __name__ == "__main__":
     main()

@@ -24,10 +24,10 @@ async def upload_data():
     data = data[
         (data["score"].notna()) &
         (data["score"] > 6.5) &
-        (data["type"].isin(["TV", "Movie"]))
-        ].copy()  # .copy() чтобы избежать предупреждений SettingWithCopy
+        (data["type"].isin(["TV", "Movie", "OVA", "ONA"]))
+        ].copy()
 
-    print(f"После фильтрации осталось {len(data)} записей (Score > 6.5, TV/Movie)")
+    print(f"После фильтрации осталось {len(data)} записей (Score > 6.5, TV/Movie/OVA/ONA)")
 
     def to_native_list(val):
         if isinstance(val, np.ndarray):
@@ -36,7 +36,6 @@ async def upload_data():
 
     data["genres"] = data["genres"].apply(to_native_list)
     data["themes"] = data["themes"].apply(to_native_list)
-
     data["synopsis"] = data["synopsis"].str.replace("\n\n[Written by MAL Rewrite]", "", regex=False).fillna("")
 
     data_to_insert = data.rename(columns={

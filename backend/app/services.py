@@ -39,7 +39,8 @@ async def get_recommendation(data, recommender):
         "type": data.type,
         "year_min": data.year_min,
         "year_max": data.year_max,
-        "min_score": data.min_score
+        "min_score": data.min_score,
+        "include_adult": data.include_adult
     }
 
     async with async_session() as session:
@@ -75,7 +76,26 @@ async def get_recommendation(data, recommender):
         query = select(AnimeInformation).where(AnimeInformation.mal_id.in_(sorted_ids))
         result = await session.execute(query)
         anime_list = result.scalars().all()
-        anime_dict = {a.mal_id: a for a in anime_list}
+
+        filtered_list = []
+        for a in anime_list:
+            if data.year_min and (a.start_year or 0) < data.year_min: continue
+            if data.year_max and (a.start_year or 0) > data.year_max: continue
+
+            if data.min_score and (a.score or 0) < data.min_score: continue
+
+            if data.type:
+                if a.type not in data.type: continue
+
+            if data.genres:
+                if not all(g in a.genres for g in data.genres): continue
+
+            if data.themes:
+                if not all(t in a.themes for t in data.themes): continue
+
+            filtered_list.append(a)
+
+        anime_dict = {a.mal_id: a for a in filtered_list}
 
         final_results = []
         seen_titles = set()
