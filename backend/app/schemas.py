@@ -16,7 +16,7 @@ class AnimeSchema(BaseModel):
 class RecommendationRequest(BaseModel):
     text_query: str
     genres: Optional[list[str]] = None
-    type: Optional[str] = None
+    type: Optional[list[str]] = None
     year_min: Optional[int] = None
     year_max: Optional[int] = None
     min_score: Optional[float] = None
