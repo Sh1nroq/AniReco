@@ -63,6 +63,8 @@ def clean_value(v):
         return v.tolist()
     if isinstance(v, list):
         return v
+    if isinstance(v, (bool, np.bool_)):
+        return bool(v)
     if np.isscalar(v):
         if pd.isna(v): return None
         if isinstance(v, (np.int64, np.int32)): return int(v)

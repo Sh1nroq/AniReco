@@ -22,6 +22,7 @@ class RecommendationRequest(BaseModel):
     min_score: Optional[float] = None
     popularity: Optional[int] = None
     themes: Optional[list[str]] = None
+    include_adult: bool = False
     sort_by: Optional[str] = "relevance"
 
 class RecommendationResponse(BaseModel):

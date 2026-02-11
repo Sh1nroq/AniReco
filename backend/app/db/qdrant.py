@@ -68,6 +68,14 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
                 models.FieldCondition(key="start_year", range=models.Range(**kwargs))
             )
 
+        if not filters.get("include_adult", False):
+            conditions.append(
+                models.FieldCondition(
+                    key="is_adult",
+                    match=models.MatchValue(value=False)
+                )
+            )
+
         if conditions:
             qdrant_filter = models.Filter(must=conditions)
         # print(f"DEBUG: Применены фильтры: {conditions}")

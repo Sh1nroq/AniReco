@@ -39,7 +39,8 @@ async def get_recommendation(data, recommender):
         "type": data.type,
         "year_min": data.year_min,
         "year_max": data.year_max,
-        "min_score": data.min_score
+        "min_score": data.min_score,
+        "include_adult": data.include_adult
     }
 
     async with async_session() as session:
