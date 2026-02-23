@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useCallback} from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,6 +23,9 @@ import {Checkbox} from "@/components/ui/checkbox";
 
 const noSpinners = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
+const CURRENT_YEAR = new Date().getFullYear();
+const ANIME_FIRST_YEAR = 1917;
+
 // --- 1. ТИПЫ ---
 
 interface Anime {
@@ -42,6 +45,13 @@ interface RecommendationResponse {
     model_response: Anime[];
 }
 
+interface ValidationErrors {
+    yearMin?: string;
+    yearMax?: string;
+    minScore?: string;
+    yearRange?: string;
+}
+
 const GENRES_FALLBACK = ["Action", "Adventure", "Comedy", "Drama", "Sci-Fi", "Fantasy", "Romance"];
 const THEMES_FALLBACK = ["Gore", "Military", "Music", "Psychological", "School", "Space"];
 
@@ -52,7 +62,27 @@ const TYPES_OPTIONS: FilterOption[] = [
     {value: "ONA", label: "ONA"},
 ];
 
-// --- 2. ГЛАВНЫЙ КОМПОНЕНТ ---
+// --- 2. ХЕЛПЕРЫ ВАЛИДАЦИИ ---
+
+function validateYear(value: string): string | undefined {
+    if (!value) return undefined;
+    const num = parseInt(value);
+    if (isNaN(num)) return "Must be a number";
+    if (num < ANIME_FIRST_YEAR) return `Min year is ${ANIME_FIRST_YEAR}`;
+    if (num > CURRENT_YEAR) return `Max year is ${CURRENT_YEAR}`;
+    return undefined;
+}
+
+function validateScore(value: string): string | undefined {
+    if (!value) return undefined;
+    const num = parseFloat(value);
+    if (isNaN(num)) return "Must be a number";
+    if (num < 0) return "Min score is 0";
+    if (num > 10) return "Max score is 10";
+    return undefined;
+}
+
+// --- 3. ГЛАВНЫЙ КОМПОНЕНТ ---
 
 export default function AnimeApp() {
     const [hasSearched, setHasSearched] = useState(false);
@@ -72,10 +102,40 @@ export default function AnimeApp() {
 
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState("relevance");
-
     const [includeAdult, setIncludeAdult] = useState(false);
 
-    // Считаем активные фильтры
+    const [errors, setErrors] = useState<ValidationErrors>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+    // --- Валидация ---
+    const validate = useCallback((): ValidationErrors => {
+        const errs: ValidationErrors = {};
+
+        const yearMinErr = validateYear(yearMin);
+        if (yearMinErr) errs.yearMin = yearMinErr;
+
+        const yearMaxErr = validateYear(yearMax);
+        if (yearMaxErr) errs.yearMax = yearMaxErr;
+
+        if (!yearMinErr && !yearMaxErr && yearMin && yearMax) {
+            if (parseInt(yearMin) > parseInt(yearMax)) {
+                errs.yearRange = "'From' must be ≤ 'To'";
+            }
+        }
+
+        const scoreErr = validateScore(minScore);
+        if (scoreErr) errs.minScore = scoreErr;
+
+        return errs;
+    }, [yearMin, yearMax, minScore]);
+
+    useEffect(() => {
+        setErrors(validate());
+    }, [validate]);
+
+    const hasErrors = Object.keys(errors).length > 0;
+
+    // --- Активные фильтры ---
     const activeFilterCount =
         selectedGenres.length +
         selectedThemes.length +
@@ -97,6 +157,36 @@ export default function AnimeApp() {
         setMinScore("");
         setSortBy("relevance");
         setIncludeAdult(false);
+        setTouched({});
+        setErrors({});
+    };
+
+    const handleBlur = (field: string) => {
+        setTouched(prev => ({...prev, [field]: true}));
+    };
+
+    const handleScoreBlur = () => {
+        handleBlur("minScore");
+        if (minScore) {
+            const num = parseFloat(minScore);
+            if (!isNaN(num)) {
+                const clamped = Math.min(10, Math.max(0, num));
+                setMinScore(String(parseFloat(clamped.toFixed(1))));
+            }
+        }
+    };
+
+    const handleYearBlur = (field: "yearMin" | "yearMax") => {
+        handleBlur(field);
+        const val = field === "yearMin" ? yearMin : yearMax;
+        if (val) {
+            const num = parseInt(val);
+            if (!isNaN(num)) {
+                const clamped = Math.min(CURRENT_YEAR, Math.max(ANIME_FIRST_YEAR, num));
+                if (field === "yearMin") setYearMin(String(clamped));
+                else setYearMax(String(clamped));
+            }
+        }
     };
 
     useEffect(() => {
@@ -110,7 +200,12 @@ export default function AnimeApp() {
     }, []);
 
     const handleSearch = async () => {
+        setTouched({yearMin: true, yearMax: true, minScore: true});
+        const currentErrors = validate();
+        if (Object.keys(currentErrors).length > 0) return;
+
         if (!query.trim() && selectedGenres.length === 0 && selectedThemes.length === 0 && selectedTypes.length === 0 && !yearMin && !yearMax && !minScore) return;
+
         setLoading(true);
         setHasSearched(false);
         try {
@@ -139,6 +234,11 @@ export default function AnimeApp() {
             setHasSearched(true);
         }
     };
+
+    const showError = (field: keyof ValidationErrors) =>
+        touched[field] ? errors[field] : undefined;
+
+    const yearRangeError = (touched.yearMin || touched.yearMax) ? errors.yearRange : undefined;
 
     return (
         <div className="min-h-screen bg-black text-zinc-50 font-sans antialiased selection:bg-zinc-800">
@@ -176,24 +276,43 @@ export default function AnimeApp() {
                                 />
                             </div>
 
+                            {/* RELEASE PERIOD с валидацией */}
                             <div className="space-y-2">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 ml-3">Release Period</label>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        type="number"
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 ml-3">
+                                    Release Period
+                                    <span className="text-zinc-600 normal-case font-normal ml-1">({ANIME_FIRST_YEAR}–{CURRENT_YEAR})</span>
+                                </label>
+                                <div className="flex items-start gap-2">
+                                    <ValidatedInput
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="From"
                                         value={yearMin}
-                                        onChange={(e) => setYearMin(e.target.value)}
-                                        className={cn("bg-zinc-950 border-zinc-800 h-11 rounded-2xl focus-visible:ring-zinc-700 placeholder:text-zinc-600 text-zinc-200 px-4", noSpinners)}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                            setYearMin(val);
+                                        }}
+                                        onBlur={() => handleYearBlur("yearMin")}
+                                        error={showError("yearMin")}
                                     />
-                                    <Input
-                                        type="number"
+                                    <ValidatedInput
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="To"
                                         value={yearMax}
-                                        onChange={(e) => setYearMax(e.target.value)}
-                                        className={cn("bg-zinc-950 border-zinc-800 h-11 rounded-2xl focus-visible:ring-zinc-700 placeholder:text-zinc-600 text-zinc-200 px-4", noSpinners)}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                            setYearMax(val);
+                                        }}
+                                        onBlur={() => handleYearBlur("yearMax")}
+                                        error={showError("yearMax")}
                                     />
                                 </div>
+                                {yearRangeError && !showError("yearMin") && !showError("yearMax") && (
+                                    <p className="text-[11px] text-red-400 ml-1 flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3 shrink-0"/> {yearRangeError}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -219,18 +338,35 @@ export default function AnimeApp() {
                                 className="flex-1 bg-transparent border-none text-base h-12 focus-visible:ring-0 placeholder:text-zinc-600 text-zinc-200 px-0"
                             />
                             <div className="flex items-center gap-2 shrink-0 ml-2">
-                                <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800">
-                                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500"/>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        min="0"
-                                        max="10"
-                                        placeholder="0.0"
-                                        value={minScore}
-                                        onChange={(e) => setMinScore(e.target.value)}
-                                        className={cn("w-8 bg-transparent border-none text-sm font-semibold focus:outline-none text-zinc-200 placeholder:text-zinc-600", noSpinners)}
-                                    />
+                                {/* SCORE с валидацией */}
+                                <div className="hidden sm:flex flex-col items-start gap-0.5">
+                                    <div className={cn(
+                                        "flex items-center gap-2 px-3 py-2 rounded-xl bg-[#09090b] border transition-colors",
+                                        showError("minScore") ? "border-red-500/60" : "border-zinc-800"
+                                    )}>
+                                        <Star className={cn("h-4 w-4 shrink-0", showError("minScore") ? "text-red-400" : "text-yellow-500 fill-yellow-500")}/>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="10"
+                                            placeholder="0.0"
+                                            value={minScore}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === "" || /^\d{0,2}(\.\d{0,1})?$/.test(val)) {
+                                                    setMinScore(val);
+                                                }
+                                            }}
+                                            onBlur={handleScoreBlur}
+                                            className={cn("w-10 bg-transparent border-none text-sm font-semibold focus:outline-none placeholder:text-zinc-600", noSpinners, showError("minScore") ? "text-red-400" : "text-zinc-200")}
+                                        />
+                                    </div>
+                                    {showError("minScore") && (
+                                        <p className="flex items-center gap-1 text-[10px] text-red-400 ml-1 whitespace-nowrap">
+                                            <AlertCircle className="h-2.5 w-2.5 shrink-0"/> {showError("minScore")}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="h-8 w-px bg-zinc-800 mx-2 hidden sm:block"/>
                                 <SortDropdown
@@ -242,7 +378,13 @@ export default function AnimeApp() {
                                 <Button
                                     onClick={handleSearch}
                                     disabled={loading}
-                                    className="h-12 px-8 bg-white text-black hover:bg-zinc-200 font-bold rounded-xl transition-all active:scale-95 ml-1"
+                                    title={hasErrors ? "Fix validation errors before searching" : undefined}
+                                    className={cn(
+                                        "h-12 px-8 font-bold rounded-xl transition-all active:scale-95 ml-1",
+                                        hasErrors && Object.keys(touched).length > 0
+                                            ? "bg-zinc-700 text-zinc-400 cursor-not-allowed"
+                                            : "bg-white text-black hover:bg-zinc-200"
+                                    )}
                                 >
                                     {loading ? "..." : "Find"}
                                 </Button>
@@ -250,7 +392,7 @@ export default function AnimeApp() {
                         </div>
                     </div>
 
-                    {/* ANIMATED RESET FOOTER — расширяется снизу */}
+                    {/* ANIMATED RESET FOOTER */}
                     <div
                         className={cn(
                             "overflow-hidden transition-all duration-500 ease-in-out",
@@ -259,7 +401,6 @@ export default function AnimeApp() {
                     >
                         <div className="px-6 md:px-8 pb-5">
                             <div className="flex items-center justify-between border border-zinc-800 rounded-2xl px-4 py-2.5 bg-zinc-950">
-                                {/* Пилюли активных фильтров */}
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                                         Active filters:
@@ -282,8 +423,6 @@ export default function AnimeApp() {
                                     {sortBy !== "relevance" && <FilterPill label={sortBy} onRemove={() => setSortBy("relevance")} />}
                                     {includeAdult && <FilterPill label="18+" onRemove={() => setIncludeAdult(false)} />}
                                 </div>
-
-                                {/* Кнопка сброса */}
                                 <button
                                     onClick={handleResetFilters}
                                     className="shrink-0 flex items-center gap-1.5 ml-4 text-xs font-semibold text-zinc-400 hover:text-white transition-colors group"
@@ -320,7 +459,32 @@ export default function AnimeApp() {
     );
 }
 
-// --- КОМПОНЕНТ ПИЛЮЛИ ФИЛЬТРА ---
+// --- VALIDATED INPUT ---
+
+function ValidatedInput({error, className, ...props}: React.InputHTMLAttributes<HTMLInputElement> & {error?: string}) {
+    return (
+        <div className="flex-1 space-y-1">
+            <Input
+                {...props}
+                className={cn(
+                    "bg-zinc-950 border h-11 rounded-2xl placeholder:text-zinc-600 text-zinc-200 px-4 transition-colors",
+                    noSpinners,
+                    error
+                        ? "border-red-500/60 text-red-300 focus-visible:ring-red-800/40"
+                        : "border-zinc-800 focus-visible:ring-zinc-700",
+                    className
+                )}
+            />
+            {error && (
+                <p className="flex items-center gap-1 text-[11px] text-red-400 ml-1">
+                    <AlertCircle className="h-3 w-3 shrink-0"/> {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+// --- FILTER PILL ---
 
 function FilterPill({label, onRemove}: { label: string; onRemove: () => void }) {
     return (
@@ -333,7 +497,7 @@ function FilterPill({label, onRemove}: { label: string; onRemove: () => void }) 
     );
 }
 
-// --- UI КОМПОНЕНТЫ ---
+// --- MULTI SELECT ---
 
 function MultiSelect({data, selected, setSelected, placeholder}: {
     data: string[],
@@ -374,11 +538,12 @@ function MultiSelect({data, selected, setSelected, placeholder}: {
     );
 }
 
+// --- ANIME CARD ---
+
 function AnimeCard({anime}: { anime: Anime }) {
     return (
         <div className="group perspective h-[420px] cursor-pointer">
             <div className="relative w-full h-full transition-all duration-500 preserve-3d group-hover:rotate-y-180">
-                {/* ЛИЦЕВАЯ СТОРОНА */}
                 <div className="absolute inset-0 backface-hidden w-full h-full">
                     <Card className="w-full h-full overflow-hidden border-zinc-800 bg-[#09090b] rounded-2xl border p-0 shadow-lg group-hover:shadow-zinc-900/50">
                         <div className="relative w-full h-full">
@@ -395,7 +560,6 @@ function AnimeCard({anime}: { anime: Anime }) {
                         </div>
                     </Card>
                 </div>
-                {/* ОБРАТНАЯ СТОРОНА */}
                 <div className="absolute inset-0 backface-hidden rotate-y-180 w-full h-full">
                     <Card className="w-full h-full bg-[#09090b] border-zinc-800 p-4 flex flex-col rounded-2xl border">
                         <h3 className="font-bold text-base text-white leading-tight mb-2 line-clamp-2">{anime.title}</h3>
@@ -412,6 +576,8 @@ function AnimeCard({anime}: { anime: Anime }) {
         </div>
     );
 }
+
+// --- SORT DROPDOWN ---
 
 function SortDropdown({value, setValue, includeAdult, setIncludeAdult}: any) {
     return (
