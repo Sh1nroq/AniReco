@@ -46,15 +46,14 @@ async def get_recommendation(data, recommender):
     async with async_session() as session:
         emb = recommender.get_embedding(text)
 
-        qdrant_results = get_similar_emb(emb, recommender.client, filters=user_filters)
+        qdrant_results = get_similar_emb(emb, recommender.client, filters=user_filters, limit=100)
 
         sql_keywords = keywords[:5]
         keyword_anime = []
-        if len(keywords) < 7:
+        if sql_keywords:
             keyword_anime = await get_keyword_results(session, sql_keywords)
 
         scores = {}
-
         THRESHOLD = 0.40
         for i, (m_id, q_score) in enumerate(qdrant_results):
             if q_score < THRESHOLD:
@@ -79,13 +78,15 @@ async def get_recommendation(data, recommender):
 
         filtered_list = []
         for a in anime_list:
+            if not data.include_adult and getattr(a, 'is_adult', False):
+                continue
+
             if data.year_min and (a.start_year or 0) < data.year_min: continue
             if data.year_max and (a.start_year or 0) > data.year_max: continue
 
             if data.min_score and (a.score or 0) < data.min_score: continue
 
-            if data.type:
-                if a.type not in data.type: continue
+            if data.type and a.type not in data.type: continue
 
             if data.genres:
                 if not all(g in a.genres for g in data.genres): continue
@@ -101,10 +102,12 @@ async def get_recommendation(data, recommender):
         seen_titles = set()
 
         for m_id in sorted_ids:
-            if m_id not in anime_dict: continue
-            anime = anime_dict[m_id]
+            if m_id not in anime_dict:
+                continue
 
+            anime = anime_dict[m_id]
             title_stub = anime.title[:7].lower()
+
             if title_stub not in seen_titles:
                 final_results.append(anime)
                 seen_titles.add(title_stub)
@@ -112,9 +115,9 @@ async def get_recommendation(data, recommender):
             if len(final_results) >= 50:
                 break
 
-            if data.sort_by == "rating":
-                final_results.sort(key=lambda x: x.score or 0, reverse=True)
-            elif data.sort_by == "popularity":
-                final_results.sort(key=lambda x: x.popularity if x.popularity is not None else 999999)
+        if data.sort_by == "rating":
+            final_results.sort(key=lambda x: x.score or 0, reverse=True)
+        elif data.sort_by == "popularity":
+            final_results.sort(key=lambda x: x.popularity if x.popularity is not None else 999999)
 
         return final_results

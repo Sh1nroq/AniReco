@@ -76,7 +76,7 @@ export default function AnimeApp() {
     const [includeAdult, setIncludeAdult] = useState(false);
 
     useEffect(() => {
-        fetch('/filters')
+        fetch('/api/filters')
             .then(res => res.json())
             .then(data => {
                 if (data.genres && data.genres.length > 0) setAvailableGenres(data.genres);
@@ -90,7 +90,7 @@ export default function AnimeApp() {
         setLoading(true);
         setHasSearched(false);
         try {
-            const response = await fetch('/recommend', {
+            const response = await fetch('/api/recommend', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
