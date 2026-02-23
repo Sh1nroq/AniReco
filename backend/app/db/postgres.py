@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Float, DateTime, URL, BigInteger
+from sqlalchemy import Float, DateTime, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncAttrs, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped
@@ -8,15 +8,16 @@ from sqlalchemy.orm import mapped_column
 
 from backend.app.config import settings
 
-from sqlalchemy import text
 
 DATABASE_URL = settings.POSTGRES_URL
 engine = create_async_engine(DATABASE_URL)
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
+
 class Base(AsyncAttrs, DeclarativeBase):
     pass
+
 
 class AnimeInformation(Base):
     __tablename__ = "AnimeInformation"
@@ -37,7 +38,10 @@ class AnimeInformation(Base):
     genres: Mapped[list[str]] = mapped_column(JSONB, default=[])
     themes: Mapped[list[str]] = mapped_column(JSONB, default=[])
     is_adult: Mapped[bool] = mapped_column(default=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
 
 async def init_db():
     async with engine.begin() as conn:
