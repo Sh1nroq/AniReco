@@ -36,7 +36,7 @@ class AnimeInformation(Base):
 
     genres: Mapped[list[str]] = mapped_column(JSONB, default=[])
     themes: Mapped[list[str]] = mapped_column(JSONB, default=[])
-
+    is_adult: Mapped[bool] = mapped_column(default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 async def init_db():
