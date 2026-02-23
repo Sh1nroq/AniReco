@@ -16,7 +16,7 @@ async def lifespan(app:FastAPI):
         print("Загрузка произошла успешно!")
     yield
     print("Завершение!")
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, root_path="/api")
 
 origins = [
     "http://localhost:5173",

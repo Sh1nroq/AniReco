@@ -11,32 +11,31 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         selected_genres = filters.get("genres")
         if selected_genres and isinstance(selected_genres, list):
             for g in selected_genres:
-                genre_val = g.strip()
-                if genre_val.lower() == "slice of life":
-                    genre_val = "Slice of Life"
-                elif genre_val.lower() == "sci-fi":
-                    genre_val = "Sci-Fi"
+                mapped_genres = []
+                genre_val = g.lower().strip()
+                if genre_val == "slice of life":
+                    mapped_genres.append('Slice of Life')
+                elif genre_val == "sci-fi":
+                    mapped_genres.append('Sci-Fi')
                 else:
-                    genre_val = genre_val.title()
+                    mapped_genres.append(g.title())
 
                 conditions.append(
                     models.FieldCondition(
                         key="genres",
-                        match=models.MatchValue(value=genre_val)
+                        match=models.MatchAny(any=mapped_genres)
                     )
                 )
 
         selected_themes = filters.get("themes")
         if selected_themes and isinstance(selected_themes, list):
-            for t in selected_themes:
-                theme_val = t.strip()
-
-                conditions.append(
-                    models.FieldCondition(
-                        key="themes",
-                        match=models.MatchValue(value=theme_val)
-                    )
+            mapped_themes = [t.strip() for t in selected_themes]
+            conditions.append(
+                models.FieldCondition(
+                    key="themes",
+                    match=models.MatchAny(any=mapped_themes)
                 )
+            )
 
         min_score = filters.get("min_score")
         if min_score is not None:
