@@ -6,8 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.routes import router
 from src.model.inference import RecommenderService
 
+
 @asynccontextmanager
-async def lifespan(app:FastAPI):
+async def lifespan(app: FastAPI):
     try:
         app.state.recommender = RecommenderService()
     except Exception as e:
@@ -16,6 +17,8 @@ async def lifespan(app:FastAPI):
         print("Загрузка произошла успешно!")
     yield
     print("Завершение!")
+
+
 app = FastAPI(lifespan=lifespan, root_path="/api")
 
 origins = [

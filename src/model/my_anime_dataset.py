@@ -1,5 +1,6 @@
 import torch
 
+
 class MyAnimeDataset(torch.utils.data.Dataset):
     def __init__(self, data, tokenizer):
         self.full_text = data
@@ -9,13 +10,25 @@ class MyAnimeDataset(torch.utils.data.Dataset):
         negative = self.full_text["negative"].tolist()
 
         self.tokenized_anchor = tokenizer(
-            anchor, truncation=True, padding="max_length", max_length=256, return_tensors="pt"
+            anchor,
+            truncation=True,
+            padding="max_length",
+            max_length=256,
+            return_tensors="pt",
         )
         self.tokenized_positive = tokenizer(
-            positive, truncation=True, padding="max_length", max_length=256, return_tensors="pt"
+            positive,
+            truncation=True,
+            padding="max_length",
+            max_length=256,
+            return_tensors="pt",
         )
         self.tokenized_negative = tokenizer(
-            negative, truncation=True, padding="max_length", max_length=256, return_tensors="pt"
+            negative,
+            truncation=True,
+            padding="max_length",
+            max_length=256,
+            return_tensors="pt",
         )
 
     def __getitem__(self, index):

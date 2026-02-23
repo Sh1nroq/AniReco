@@ -5,20 +5,45 @@ from backend.app.db.qdrant import get_similar_emb
 
 
 def extract_keywords(text: str):
-    text = re.sub(r'[^a-zA-Z0-9\s-]', '', text.lower())
+    text = re.sub(r"[^a-zA-Z0-9\s-]", "", text.lower())
     STOP_WORDS = {
-        'anime', 'story', 'follows', 'characters', 'plot', 'centers',
-        'world', 'life', 'finds', 'series', 'everything', 'things',
-        'years', 'high', 'school', 'striving', 'intense', 'each',
-        'both', 'their', 'driven', 'sense', 'testing', 'lives',
-        'want', 'find', 'mood', 'about', 'with'
+        "anime",
+        "story",
+        "follows",
+        "characters",
+        "plot",
+        "centers",
+        "world",
+        "life",
+        "finds",
+        "series",
+        "everything",
+        "things",
+        "years",
+        "high",
+        "school",
+        "striving",
+        "intense",
+        "each",
+        "both",
+        "their",
+        "driven",
+        "sense",
+        "testing",
+        "lives",
+        "want",
+        "find",
+        "mood",
+        "about",
+        "with",
     }
     words = text.split()
     return [w for w in words if len(w) > 3 and w not in STOP_WORDS]
 
 
 async def get_keyword_results(session, keywords):
-    if not keywords: return []
+    if not keywords:
+        return []
     conditions = []
     for word in keywords:
         conditions.append(AnimeInformation.title.ilike(f"%{word}%"))
@@ -40,13 +65,15 @@ async def get_recommendation(data, recommender):
         "year_min": data.year_min,
         "year_max": data.year_max,
         "min_score": data.min_score,
-        "include_adult": data.include_adult
+        "include_adult": data.include_adult,
     }
 
     async with async_session() as session:
         emb = recommender.get_embedding(text)
 
-        qdrant_results = get_similar_emb(emb, recommender.client, filters=user_filters, limit=100)
+        qdrant_results = get_similar_emb(
+            emb, recommender.client, filters=user_filters, limit=100
+        )
 
         sql_keywords = keywords[:5]
         keyword_anime = []
@@ -78,21 +105,27 @@ async def get_recommendation(data, recommender):
 
         filtered_list = []
         for a in anime_list:
-            if not data.include_adult and getattr(a, 'is_adult', False):
+            if not data.include_adult and getattr(a, "is_adult", False):
                 continue
 
-            if data.year_min and (a.start_year or 0) < data.year_min: continue
-            if data.year_max and (a.start_year or 0) > data.year_max: continue
+            if data.year_min and (a.start_year or 0) < data.year_min:
+                continue
+            if data.year_max and (a.start_year or 0) > data.year_max:
+                continue
 
-            if data.min_score and (a.score or 0) < data.min_score: continue
+            if data.min_score and (a.score or 0) < data.min_score:
+                continue
 
-            if data.type and a.type not in data.type: continue
+            if data.type and a.type not in data.type:
+                continue
 
             if data.genres:
-                if not all(g in a.genres for g in data.genres): continue
+                if not all(g in a.genres for g in data.genres):
+                    continue
 
             if data.themes:
-                if not all(t in a.themes for t in data.themes): continue
+                if not all(t in a.themes for t in data.themes):
+                    continue
 
             filtered_list.append(a)
 
@@ -118,6 +151,8 @@ async def get_recommendation(data, recommender):
         if data.sort_by == "rating":
             final_results.sort(key=lambda x: x.score or 0, reverse=True)
         elif data.sort_by == "popularity":
-            final_results.sort(key=lambda x: x.popularity if x.popularity is not None else 999999)
+            final_results.sort(
+                key=lambda x: x.popularity if x.popularity is not None else 999999
+            )
 
         return final_results

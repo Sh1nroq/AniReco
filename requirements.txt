@@ -20,3 +20,8 @@ torch
 torchvision
 torchaudio
 sentence-transformers
+ruff
+mypy
+pytest
+pytest-asyncio
+httpx
