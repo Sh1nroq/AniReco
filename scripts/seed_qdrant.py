@@ -10,29 +10,32 @@ from backend.app.config import settings
 
 
 def extract_year(date_str):
-    if not date_str: return None
+    if not date_str:
+        return None
     # Ищем первые 4 цифры подряд (например, из "Oct 4, 2006")
-    match = re.search(r'\d{4}', str(date_str))
+    match = re.search(r"\d{4}", str(date_str))
     if match:
         return int(match.group(0))
     return None
+
 
 def migrate_data_to_qdrant():
     BASE_DIR = Path(__file__).resolve().parent.parent
     DF_DIR = BASE_DIR / "data" / "processed" / "parsed_anime_data.parquet"
     EMB_DIR = BASE_DIR / "data" / "embeddings" / "embedding_of_all_anime_MiniLM.npy"
 
-    df_anime = pd.read_parquet(DF_DIR).drop("image_url", axis = 1)
+    df_anime = pd.read_parquet(DF_DIR).drop("image_url", axis=1)
     embedding_anime = np.load(EMB_DIR)
 
-    if 'aired' in df_anime.columns:
-        df_anime['start_year'] = df_anime['aired'].apply(extract_year)
+    if "aired" in df_anime.columns:
+        df_anime["start_year"] = df_anime["aired"].apply(extract_year)
     else:
         print("Колонка с датой не найдена! Проверь название в паркете.")
-        df_anime['start_year'] = None
+        df_anime["start_year"] = None
 
-    df_anime['emb'] = embedding_anime.tolist()
+    df_anime["emb"] = embedding_anime.tolist()
     return df_anime
+
 
 QDRANT_URL = settings.QDRANT_URL
 client = QdrantClient(url=QDRANT_URL)
@@ -40,7 +43,7 @@ COLLECTION_NAME = settings.COLLECTION_NAME
 
 data = migrate_data_to_qdrant()
 
-first_vector = data['emb'].iloc[0]
+first_vector = data["emb"].iloc[0]
 if hasattr(first_vector, "tolist"):
     actual_dim = len(first_vector.tolist())
 else:
@@ -50,13 +53,14 @@ print(f"Обнаружен размер эмбеддинга: {actual_dim}")
 
 if client.collection_exists(collection_name=COLLECTION_NAME):
     client.delete_collection(collection_name=COLLECTION_NAME)
-    print(f"Старая коллекция удалена.")
+    print("Старая коллекция удалена.")
 
 client.create_collection(
     collection_name=COLLECTION_NAME,
     vectors_config=VectorParams(size=actual_dim, distance=Distance.COSINE),
 )
 print(f"Коллекция создана с размером вектора {actual_dim}.")
+
 
 def clean_value(v):
     if isinstance(v, np.ndarray):
@@ -66,28 +70,28 @@ def clean_value(v):
     if isinstance(v, (bool, np.bool_)):
         return bool(v)
     if np.isscalar(v):
-        if pd.isna(v): return None
-        if isinstance(v, (np.int64, np.int32)): return int(v)
-        if isinstance(v, (np.float64, np.float32)): return float(v)
+        if pd.isna(v):
+            return None
+        if isinstance(v, (np.int64, np.int32)):
+            return int(v)
+        if isinstance(v, (np.float64, np.float32)):
+            return float(v)
     return v
+
 
 points = []
 for idx, row in data.iterrows():
-    vector = clean_value(row['emb'])
+    vector = clean_value(row["emb"])
 
     if len(vector) != actual_dim:
         print(f"Ошибка в строке {idx}: ожидалось {actual_dim}, пришло {len(vector)}")
         continue
 
-    raw_payload = row.drop(['emb', 'mal_id', 'aired']).to_dict()
+    raw_payload = row.drop(["emb", "mal_id", "aired"]).to_dict()
     clean_payload = {k: clean_value(v) for k, v in raw_payload.items()}
 
     points.append(
-        PointStruct(
-            id=int(row['mal_id']),
-            vector=vector,
-            payload=clean_payload
-        )
+        PointStruct(id=int(row["mal_id"]), vector=vector, payload=clean_payload)
     )
 
 batch_size = 100
@@ -95,7 +99,7 @@ for i in range(0, len(points), batch_size):
     client.upsert(
         collection_name=COLLECTION_NAME,
         wait=True,
-        points=points[i: i + batch_size],
+        points=points[i : i + batch_size],
     )
 
 print(f"Успешно загружено {len(points)} точек в Qdrant.")

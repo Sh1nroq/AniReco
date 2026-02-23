@@ -4,6 +4,7 @@ from pydantic import Field
 
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
 class Settings(BaseSettings):
     BASE_DIR: Path = _BASE_DIR
 
@@ -15,14 +16,13 @@ class Settings(BaseSettings):
 
     @property
     def MODEL_PATH(self) -> Path:
-        return self.BASE_DIR / "data" / "embeddings" / "anime_recommender_MiniLM-L6_v1.pt"
+        return (
+            self.BASE_DIR / "data" / "embeddings" / "anime_recommender_MiniLM-L6_v1.pt"
+        )
 
     model_config = SettingsConfigDict(
-        env_file=_BASE_DIR / ".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=_BASE_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+
 settings = Settings()
-
-

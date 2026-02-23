@@ -14,7 +14,7 @@ def json_parser(filepath: str):
     mal_ids = [record.get("mal_id") for record in data if record.get("mal_id")]
     unique_mal_ids = set(mal_ids)
     if len(mal_ids) != len(unique_mal_ids):
-        print(f"В исходном JSON найдены дубликаты mal_id!")
+        print("В исходном JSON найдены дубликаты mal_id!")
         print(f"Всего mal_id: {len(mal_ids)}")
         print(f"Уникальных: {len(unique_mal_ids)}")
         print(f"Дубликатов: {len(mal_ids) - len(unique_mal_ids)}")
@@ -50,7 +50,7 @@ def json_parser(filepath: str):
         is_adult = "Hentai" in genres_list or "Erotica" in genres_list
 
         duration_str = record.get("duration", "0 min")
-        duration_match = re.search(r'\d+', duration_str)
+        duration_match = re.search(r"\d+", duration_str)
         duration_minutes = int(duration_match.group(0)) if duration_match else 0
 
         if type_ == "OVA" and duration_minutes < 15:
@@ -76,7 +76,7 @@ def json_parser(filepath: str):
                     final_themes,
                     popularity,
                     image_url,
-                    is_adult
+                    is_adult,
                 )
             )
             seen_mal_ids.add(mal_id)
@@ -86,16 +86,30 @@ def json_parser(filepath: str):
     DIR_BASE = os.path.dirname(os.path.abspath(__file__))
     df = pd.DataFrame(
         parsed_info,
-        columns=["mal_id", "title", "genres", "synopsis", "score", "type", "aired", "themes", "popularity", "image_url", "is_adult"]
+        columns=[
+            "mal_id",
+            "title",
+            "genres",
+            "synopsis",
+            "score",
+            "type",
+            "aired",
+            "themes",
+            "popularity",
+            "image_url",
+            "is_adult",
+        ],
     )
 
-    duplicates_in_df = df.duplicated(subset=['mal_id'], keep=False).sum()
+    duplicates_in_df = df.duplicated(subset=["mal_id"], keep=False).sum()
     if duplicates_in_df > 0:
         print(f"Найдено дубликатов в DataFrame: {duplicates_in_df}")
-        df = df.drop_duplicates(subset=['mal_id'], keep='first')
+        df = df.drop_duplicates(subset=["mal_id"], keep="first")
         print(f"После удаления: {len(df)} записей")
 
-    output_path = os.path.join(DIR_BASE, "../../data/processed/parsed_anime_data.parquet")
+    output_path = os.path.join(
+        DIR_BASE, "../../data/processed/parsed_anime_data.parquet"
+    )
     df.to_parquet(
         output_path,
         index=False,

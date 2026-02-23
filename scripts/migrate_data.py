@@ -22,12 +22,14 @@ async def upload_data():
     data = pd.read_parquet(parquet_path)
 
     data = data[
-        (data["score"].notna()) &
-        (data["score"] > 6.5) &
-        (data["type"].isin(["TV", "Movie", "OVA", "ONA"]))
-        ].copy()
+        (data["score"].notna())
+        & (data["score"] > 6.5)
+        & (data["type"].isin(["TV", "Movie", "OVA", "ONA"]))
+    ].copy()
 
-    print(f"После фильтрации осталось {len(data)} записей (Score > 6.5, TV/Movie/OVA/ONA)")
+    print(
+        f"После фильтрации осталось {len(data)} записей (Score > 6.5, TV/Movie/OVA/ONA)"
+    )
 
     def to_native_list(val):
         if isinstance(val, np.ndarray):
@@ -36,12 +38,15 @@ async def upload_data():
 
     data["genres"] = data["genres"].apply(to_native_list)
     data["themes"] = data["themes"].apply(to_native_list)
-    data["synopsis"] = data["synopsis"].str.replace("\n\n[Written by MAL Rewrite]", "", regex=False).fillna("")
+    data["synopsis"] = (
+        data["synopsis"]
+        .str.replace("\n\n[Written by MAL Rewrite]", "", regex=False)
+        .fillna("")
+    )
 
-    data_to_insert = data.rename(columns={
-        "synopsis": "description",
-        "aired": "start_year"
-    }).to_dict(orient="records")
+    data_to_insert = data.rename(
+        columns={"synopsis": "description", "aired": "start_year"}
+    ).to_dict(orient="records")
 
     for item in data_to_insert:
         item["status"] = "ok"
@@ -51,7 +56,7 @@ async def upload_data():
 
     async with engine.begin() as conn:
         for i in range(0, total, batch_size):
-            batch = data_to_insert[i: i + batch_size]
+            batch = data_to_insert[i : i + batch_size]
             stmt = insert(AnimeInformation)
             await conn.execute(stmt, batch)
             print(f"Загружено: {min(i + batch_size, total)} / {total}")

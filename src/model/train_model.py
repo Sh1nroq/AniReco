@@ -45,10 +45,13 @@ weight_decay = 0.05
 num_epochs = 15
 margin = 0.5
 max_length = 256
-optimizer = torch.optim.AdamW([
-    {'params': model.bert_model.parameters(), 'lr': 1e-6},
-    {'params': model.head.parameters(), 'lr': 1e-4}
-], weight_decay=0.01)
+optimizer = torch.optim.AdamW(
+    [
+        {"params": model.bert_model.parameters(), "lr": 1e-6},
+        {"params": model.head.parameters(), "lr": 1e-4},
+    ],
+    weight_decay=0.01,
+)
 
 total_steps = len(train_dataloader) * num_epochs
 warmup_steps = int(0.2 * total_steps)
@@ -58,7 +61,16 @@ scheduler = get_linear_schedule_with_warmup(
 )
 
 
-def fine_tuning(model, train_dataloader, optimizer, scheduler, device, margin=1.0, accum_steps=4, epoch=0):
+def fine_tuning(
+    model,
+    train_dataloader,
+    optimizer,
+    scheduler,
+    device,
+    margin=1.0,
+    accum_steps=4,
+    epoch=0,
+):
     num_layers = len(model.bert_model.encoder.layer)
     layers_to_unfreeze = min(2 * (epoch + 1), num_layers)
     for i, layer in enumerate(model.bert_model.encoder.layer):
@@ -73,7 +85,9 @@ def fine_tuning(model, train_dataloader, optimizer, scheduler, device, margin=1.
     total_loss = 0.0
     num_batches = 0
 
-    for i, (anchor, positive, negative) in enumerate(tqdm(train_dataloader, desc="Training", leave=False)):
+    for i, (anchor, positive, negative) in enumerate(
+        tqdm(train_dataloader, desc="Training", leave=False)
+    ):
         anchor, positive, negative = move_to_device(anchor, positive, negative, device)
 
         device_type = "cuda" if "cuda" in str(device) else "cpu"
@@ -110,7 +124,9 @@ def validate(model, val_dataloader, device, margin=1.0):
 
     with torch.no_grad():
         for anchor, positive, negative in tqdm(val_dataloader, desc="Validating"):
-            anchor, positive, negative = move_to_device(anchor, positive, negative, device)
+            anchor, positive, negative = move_to_device(
+                anchor, positive, negative, device
+            )
 
             emb_a = model(**anchor)
             emb_p = model(**positive)
@@ -129,15 +145,22 @@ def validate(model, val_dataloader, device, margin=1.0):
     print(f"Validation Accuracy (Correct Ranking): {accuracy:.2f}%")
 
     return avg_loss
+
+
 for epoch in range(num_epochs):
     if epoch % 2 == 0 and epoch > 0:
         num_to_unfreeze = epoch // 2 * 2
         print(f"Размораживаем верхние {num_to_unfreeze} слоя(ев)")
 
-    train_loss = fine_tuning(model, train_dataloader, optimizer, scheduler, device, margin, epoch=epoch)
-    val_loss = validate(model, val_dataloader, device,margin)
+    train_loss = fine_tuning(
+        model, train_dataloader, optimizer, scheduler, device, margin, epoch=epoch
+    )
+    val_loss = validate(model, val_dataloader, device, margin)
     print(
-        f"\nEpoch [{epoch+1}/{num_epochs}]  Train Loss: {train_loss:.4f}  |  Val Loss: {val_loss:.4f}"
+        f"\nEpoch [{epoch + 1}/{num_epochs}]  Train Loss: {train_loss:.4f}  |  Val Loss: {val_loss:.4f}"
     )
 
-torch.save(model.state_dict(), os.path.join(BASE_DIR, "../../data/embeddings/anime_recommender_MiniLM-L6_v1.pt"))
+torch.save(
+    model.state_dict(),
+    os.path.join(BASE_DIR, "../../data/embeddings/anime_recommender_MiniLM-L6_v1.pt"),
+)

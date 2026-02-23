@@ -1,0 +1,13 @@
+# force update
+[tool.ruff]
+line-length = 120
+exclude = [".venv", "venv", "__pycache__", "migrations"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests"]

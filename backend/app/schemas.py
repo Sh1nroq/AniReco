@@ -13,6 +13,7 @@ class AnimeSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class RecommendationRequest(BaseModel):
     text_query: str
     genres: Optional[list[str]] = None
@@ -24,6 +25,7 @@ class RecommendationRequest(BaseModel):
     themes: Optional[list[str]] = None
     include_adult: bool = False
     sort_by: Optional[str] = "relevance"
+
 
 class RecommendationResponse(BaseModel):
     model_response: list[AnimeSchema]

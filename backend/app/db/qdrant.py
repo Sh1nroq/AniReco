@@ -1,12 +1,16 @@
+from typing import Any
+
 from qdrant_client import QdrantClient, models
 from backend.app.config import settings
 
 
-def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, limit=100):
+def get_similar_emb(
+    query_vector, client: QdrantClient, filters: dict | None = None, limit=100
+):
     qdrant_filter = None
 
     if filters:
-        conditions = []
+        conditions: list[models.Condition] = []
 
         selected_genres = filters.get("genres")
         if selected_genres and isinstance(selected_genres, list):
@@ -14,16 +18,15 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
                 mapped_genres = []
                 genre_val = g.lower().strip()
                 if genre_val == "slice of life":
-                    mapped_genres.append('Slice of Life')
+                    mapped_genres.append("Slice of Life")
                 elif genre_val == "sci-fi":
-                    mapped_genres.append('Sci-Fi')
+                    mapped_genres.append("Sci-Fi")
                 else:
                     mapped_genres.append(g.title())
 
                 conditions.append(
                     models.FieldCondition(
-                        key="genres",
-                        match=models.MatchAny(any=mapped_genres)
+                        key="genres", match=models.MatchAny(any=mapped_genres)
                     )
                 )
 
@@ -32,8 +35,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
             mapped_themes = [t.strip() for t in selected_themes]
             conditions.append(
                 models.FieldCondition(
-                    key="themes",
-                    match=models.MatchAny(any=mapped_themes)
+                    key="themes", match=models.MatchAny(any=mapped_themes)
                 )
             )
 
@@ -41,8 +43,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         if min_score is not None:
             conditions.append(
                 models.FieldCondition(
-                    key="score",
-                    range=models.Range(gte=float(min_score))
+                    key="score", range=models.Range(gte=float(min_score))
                 )
             )
 
@@ -54,7 +55,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
                 "ova": "OVA",
                 "special": "Special",
                 "ona": "ONA",
-                "music": "Music"
+                "music": "Music",
             }
 
             mapped_types = []
@@ -64,8 +65,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
 
             conditions.append(
                 models.FieldCondition(
-                    key="type",
-                    match=models.MatchAny(any=mapped_types)
+                    key="type", match=models.MatchAny(any=mapped_types)
                 )
             )
 
@@ -74,8 +74,10 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
 
         if year_min is not None or year_max is not None:
             kwargs = {}
-            if year_min is not None: kwargs['gte'] = int(year_min)
-            if year_max is not None: kwargs['lte'] = int(year_max)
+            if year_min is not None:
+                kwargs["gte"] = int(year_min)
+            if year_max is not None:
+                kwargs["lte"] = int(year_max)
 
             conditions.append(
                 models.FieldCondition(key="start_year", range=models.Range(**kwargs))
@@ -84,8 +86,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         if not filters.get("include_adult", False):
             conditions.append(
                 models.FieldCondition(
-                    key="is_adult",
-                    match=models.MatchValue(value=False)
+                    key="is_adult", match=models.MatchValue(value=False)
                 )
             )
 
@@ -98,7 +99,7 @@ def get_similar_emb(query_vector, client: QdrantClient, filters: dict = None, li
         query=query_vector,
         query_filter=qdrant_filter,
         with_payload=False,
-        limit=limit
+        limit=limit,
     )
 
     return [(hit.id, hit.score) for hit in search_result.points]
