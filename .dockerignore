@@ -6,3 +6,4 @@ node_modules
 qdrant_storage
 postgres_data
 dist
+./airflow/logs

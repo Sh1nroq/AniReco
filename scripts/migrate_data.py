@@ -2,22 +2,29 @@ import asyncio
 import os
 import pandas as pd
 import numpy as np
-from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.dialects.postgresql import insert
 
 from backend.app.config import settings
 from backend.app.db.postgres import AnimeInformation
 
-engine = create_async_engine(settings.POSTGRES_URL)
+async def upload_data(ds, **kwargs):
+    engine = create_async_engine(settings.POSTGRES_URL)
+    ti = kwargs.get('ti')
+    parquet_path = None
 
+    if ti is not None:
+        parquet_path = ti.xcom_pull(task_id='parse_anime_to_parquet')
 
-async def upload_data():
-    DIR_BASE = os.path.dirname(os.path.abspath(__file__))
-    parquet_path = os.path.join(DIR_BASE, "../data/processed/parsed_anime_data.parquet")
+    if not parquet_path or not os.path.exists(parquet_path):
+        parquet_path = f"/app/data/processed/parsed_anime_data_{ds}.parquet"
 
     if not os.path.exists(parquet_path):
-        print(f"Ошибка: Файл не найден {parquet_path}")
-        return
+        parquet_path = "/app/data/processed/parsed_anime_data.parquet"
+        if not os.path.exists(parquet_path):
+            raise FileNotFoundError(f"Файл не найден: {parquet_path}")
+
+    print(f"Загрузка данных из: {parquet_path}")
 
     data = pd.read_parquet(parquet_path)
 
@@ -54,15 +61,15 @@ async def upload_data():
     batch_size = 500
     total = len(data_to_insert)
 
-    async with engine.begin() as conn:
-        for i in range(0, total, batch_size):
-            batch = data_to_insert[i : i + batch_size]
-            stmt = insert(AnimeInformation)
-            await conn.execute(stmt, batch)
-            print(f"Загружено: {min(i + batch_size, total)} / {total}")
+    try:
+        async with engine.begin() as conn:
+            for i in range(0, total, batch_size):
+                batch = data_to_insert[i : i + batch_size]
+                stmt = insert(AnimeInformation).on_conflict_do_nothing(index_elements=["mal_id"])
+                await conn.execute(stmt, batch)
+                print(f"Загружено: {min(i + batch_size, total)} / {total}")
 
-        print("Все данные успешно загружены в PostgreSQL!")
+            print("Все данные успешно загружены в PostgreSQL!")
+    finally:
+        await engine.dispose()
 
-
-if __name__ == "__main__":
-    asyncio.run(upload_data())

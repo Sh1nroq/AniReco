@@ -127,16 +127,30 @@ def move_to_device(anchor, pos, neg, device):
     )
 
 
-def save_embedding_of_all_anime():
+def save_embedding_of_all_anime(ds, **kwargs):
+    import torch
+    from transformers import AutoTokenizer
+
+    weights_path = f"/app/data/embeddings/anime_recommender_MiniLM-L6_v1.pt"
+
+    ti = kwargs.get('ti')
+    data_path = None
+
+    if ti is not None:
+        data_path = ti.xcom_pull(task_id='parse_anime_to_parquet')
+
+    if not data_path or not os.path.exists(data_path):
+        data_path = f"/app/data/processed/parsed_anime_data_{ds}.parquet"
+
+    if not os.path.exists(data_path):
+        data_path = "/app/data/processed/parsed_anime_data.parquet"
+
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Файл данных не найден: {data_path}")
+
+    save_path = f"/app/data/embeddings/embedding_of_all_anime_MiniLM_{ds}.npy"
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    weights_path = os.path.join(
-        BASE_DIR, "../../data/embeddings/anime_recommender_MiniLM-L6_v1.pt"
-    )
-    data_path = os.path.join(BASE_DIR, "../../data/processed/parsed_anime_data.parquet")
-    save_path = os.path.join(
-        BASE_DIR, "../../data/embeddings/embedding_of_all_anime_MiniLM.npy"
-    )
 
     tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
     model = AnimeRecommender().to(device)
@@ -176,3 +190,4 @@ def save_embedding_of_all_anime():
     embeddings_matrix = np.vstack(all_embeddings).astype("float32")
     np.save(save_path, embeddings_matrix)
     print(f"Готово! Матрица {embeddings_matrix.shape} сохранена в {save_path}")
+    return save_path

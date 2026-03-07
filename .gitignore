@@ -35,3 +35,4 @@ Thumbs.db
 # --- DATABASES (Docker Volumes) ---
 qdrant_storage/
 postgres_data/
+airflow/logs/

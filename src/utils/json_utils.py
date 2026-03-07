@@ -1,12 +1,35 @@
-import os.path
+import os
 import re
 
 import orjson
 import pandas as pd
 
+import os
+import re
+import orjson
+import pandas as pd
+from airflow.models import TaskInstance
 
-def json_parser(filepath: str):
-    with open(filepath, "r", encoding="utf8") as f:
+
+def json_parser(ds, **kwargs):
+    current_date = ds
+
+    ti: TaskInstance = kwargs.get('ti')
+    input_filepath = None
+
+    if ti is not None:
+        input_filepath = ti.xcom_pull(task_id='parse_anime')
+
+    if not input_filepath or not os.path.exists(input_filepath):
+        input_filepath = f"/app/data/raw/anime_{current_date}.json"
+
+    if not os.path.exists(input_filepath):
+        input_filepath = "/app/data/raw/anime.json"
+
+    if not os.path.exists(input_filepath):
+        raise FileNotFoundError(f"JSON файл не найден: {input_filepath}")
+
+    with open(input_filepath, "r", encoding="utf8") as f:
         data = orjson.loads(f.read())
 
     print(f"Всего записей в JSON: {len(data)}")
@@ -17,15 +40,13 @@ def json_parser(filepath: str):
         print("В исходном JSON найдены дубликаты mal_id!")
         print(f"Всего mal_id: {len(mal_ids)}")
         print(f"Уникальных: {len(unique_mal_ids)}")
-        print(f"Дубликатов: {len(mal_ids) - len(unique_mal_ids)}")
 
     parsed_info = []
-    seen_mal_ids = set()  # Отслеживаем уже обработанные mal_id
+    seen_mal_ids = set()
 
     for record in data:
         mal_id = record.get("mal_id", "")
 
-        # Пропускаем записи с дубликатами mal_id
         if mal_id in seen_mal_ids:
             continue
 
@@ -33,9 +54,21 @@ def json_parser(filepath: str):
         synopsis = record.get("synopsis", "")
         type_ = record.get("type", "")
         score = record.get("score", None)
-        date_str = record.get("aired", {}).get("from")
         popularity = record.get("popularity", "")
-        image_url = record.get("images", {}).get("jpg", {}).get("large_image_url")
+
+        images = record.get("images") or {}
+        jpg = images.get("jpg") or {}
+        image_url = jpg.get("large_image_url")
+
+        aired = record.get("aired") or {}
+        date_str = aired.get("from")
+
+        start_year = None
+        if date_str:
+            try:
+                start_year = int(str(date_str)[:4])
+            except (ValueError, TypeError, IndexError):
+                start_year = None
 
         raw_genres = record.get("genres") or []
         raw_themes = record.get("themes") or []
@@ -46,19 +79,14 @@ def json_parser(filepath: str):
         demo_list = [d.get("name") for d in raw_demographics if d.get("name")]
 
         final_themes = themes_list + demo_list
-
         is_adult = "Hentai" in genres_list or "Erotica" in genres_list
 
         duration_str = record.get("duration", "0 min")
-        duration_match = re.search(r"\d+", duration_str)
+        duration_match = re.search(r"\d+", str(duration_str))  # str() на случай, если там число
         duration_minutes = int(duration_match.group(0)) if duration_match else 0
 
         if type_ == "OVA" and duration_minutes < 15:
             continue
-
-        start_year = None
-        if date_str:
-            start_year = int(date_str[:4])
 
         if synopsis is not None:
             synopsis = synopsis.replace("\n\n[Written by MAL Rewrite]", "")
@@ -83,7 +111,6 @@ def json_parser(filepath: str):
 
     print(f"После фильтрации и удаления дубликатов: {len(parsed_info)} записей")
 
-    DIR_BASE = os.path.dirname(os.path.abspath(__file__))
     df = pd.DataFrame(
         parsed_info,
         columns=[
@@ -107,9 +134,10 @@ def json_parser(filepath: str):
         df = df.drop_duplicates(subset=["mal_id"], keep="first")
         print(f"После удаления: {len(df)} записей")
 
-    output_path = os.path.join(
-        DIR_BASE, "../../data/processed/parsed_anime_data.parquet"
-    )
+    output_path = f"/app/data/processed/parsed_anime_data_{current_date}.parquet"
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
     df.to_parquet(
         output_path,
         index=False,
@@ -118,4 +146,5 @@ def json_parser(filepath: str):
 
     print(f"Parquet сохранён: {output_path}")
     print(f"Итого уникальных записей: {len(df)}")
-    print(f"Уникальных mal_id: {df['mal_id'].nunique()}")
+
+    return output_path

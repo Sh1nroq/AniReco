@@ -1,0 +1,17 @@
+numpy
+pandas
+pyarrow
+transformers
+orjson
+requests
+huggingface_hub
+tqdm
+fastparquet
+qdrant_client
+sentence-transformers
+sqlalchemy>=1.4,<2.0
+asyncpg
+psycopg2-binary
+pydantic
+pydantic_settings
+python-dotenv

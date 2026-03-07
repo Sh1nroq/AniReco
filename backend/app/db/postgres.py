@@ -1,49 +1,46 @@
 from datetime import datetime
 
-from sqlalchemy import Float, DateTime, BigInteger
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncAttrs, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped
-from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from backend.app.config import settings
 
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 DATABASE_URL = settings.POSTGRES_URL
 engine = create_async_engine(DATABASE_URL)
 
-async_session = async_sessionmaker(engine, expire_on_commit=False)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-
-class Base(AsyncAttrs, DeclarativeBase):
-    pass
+Base = declarative_base()
 
 
 class AnimeInformation(Base):
     __tablename__ = "AnimeInformation"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str]
-    type: Mapped[str]
-    description: Mapped[str]
-    mal_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
-    score: Mapped[float] = mapped_column(Float, nullable=True)
-    image_url: Mapped[str] = mapped_column(nullable=True)
-    status: Mapped[str] = mapped_column(nullable=True)
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    mal_id = Column(BigInteger, unique=True, index=True, nullable=False)
+    score = Column(Float, nullable=True)
+    image_url = Column(String, nullable=True)
+    status = Column(String, nullable=True)
 
-    start_year: Mapped[int] = mapped_column(nullable=True)
+    start_year = Column(Integer, nullable=True)
 
-    popularity: Mapped[int] = mapped_column(nullable=True)
+    popularity = Column(Integer, nullable=True)
 
-    genres: Mapped[list[str]] = mapped_column(JSONB, default=[])
-    themes: Mapped[list[str]] = mapped_column(JSONB, default=[])
-    is_adult: Mapped[bool] = mapped_column(default=False)
-    updated_at: Mapped[datetime] = mapped_column(
+    genres = Column(JSONB, default=[])
+    themes = Column(JSONB, default=[])
+    is_adult = Column(Boolean, default=False)
+    updated_at = Column(
         DateTime, default=datetime.now, onupdate=datetime.now
     )
 
 
 async def init_db():
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     print("Таблицы созданы")
